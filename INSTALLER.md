@@ -67,8 +67,12 @@ Ask concrete questions about facts the user knows. Do NOT ask the user to
 self-report what their plan includes — that is what probes are for.
 
 **Q1 — mode.** First echo the relevant preflight findings so the answer is
-informed (e.g. "Preflight found the Codex CLI installed but not logged in — Super
-God Mode would need a browser login from you"). Then ask, verbatim:
+informed — both cases: "Preflight found the Codex CLI installed but not logged
+in — Super God Mode would need a browser login from you", or "Preflight found
+the Codex CLI installed AND logged in — Super God Mode is fully available, no
+login step needed." When P5 already passed, Q1.2 below is informational only
+(Phase 4 will skip install/login and go straight to the model probe — do not
+tell an already-authenticated user to log in). Then ask, verbatim:
 1. "Do you want Claude to send selected code snippets to OpenAI (via Codex) for
    review? This is what powers Super God Mode's second-model reviews. yes/no"
    → a yes here IS consent **C2** (data disclosure). Record it.
@@ -209,6 +213,8 @@ Exit 20 (`codex_unavailable`) = the install is NOT verified — show the
 envelope's `error`, route via `setup-codex.md` §5/§6, and either fix and re-test
 or record the install as "installed, bridge unverified" in both the manifest
 (`"smoke": "failed"`) and the checklist. Never present exit 20 as success.
+Manifest `smoke` values are exactly: `"approved"` on pass, `"failed"` on fail,
+`"skipped"` in god mode.
 
 **Optional demo** (offer, don't push): plant an off-by-one in a 10-line function,
 run a critique, show the finding. This is a "see it work" moment — the smoke
@@ -257,7 +263,10 @@ If preflight found existing install state (P7/P8/P9), first DISAMBIGUATE:
 
 Before offering choices, check for the **Current** state: sentinel version equals
 the installer version, the mode matches what the user wants, and every manifest
-action re-verifies on disk (links intact, hashes match, block present once).
+action re-verifies on disk using the SAME per-action ownership predicates §10
+defines — symlink: is-link AND target matches; copy: exact path-set AND every
+sha256 matches; block: sentinels present exactly once with version; backup:
+file still exists.
 If so: report "already installed and up to date — nothing to do", make NO writes
 (no new manifest, no block rewrite), and skip straight to the Phase 8 checklist.
 
@@ -306,7 +315,7 @@ disk first — if the described mutation never happened, mark the entry
 
 | Action type | Undo — with mandatory ownership check |
 | --- | --- |
-| `claude_md_block` | remove exactly the sentinel-bounded block; verify by re-read. Damaged sentinels → the §9 damaged-block procedure (bounded, shown, approved edit). Restoring the whole file from backup is a LAST resort, mid-setup only (see below), and always behind a shown diff. If the block action recorded `"created_file": true` and the file now contains nothing but our block, offer to delete the file itself. |
+| `claude_md_block` | remove exactly the sentinel-bounded block; verify by re-read. Damaged sentinels → the §9 damaged-block procedure (bounded, shown, approved edit). Restoring the whole file from backup is a LAST resort, mid-setup only (see below), and always behind a shown diff. If the block action recorded `"created_file": true` and the file now contains nothing but our block, DELETE the file on a plain uninstall (the installer created it; say so in the report) — offer a keep/delete choice only when other content survives in it. |
 | `claude_md_backup` | KEEP the backup (never deleted). |
 | `skill_install` (symlink) | verify the path is STILL a symlink AND its current target equals the manifest `target`. Match → remove the symlink only, never the target. Mismatch (user replaced it with a real dir, another link, or plugin-managed content) → STOP and ask. |
 | `skill_install` (copy) | enumerate the directory's CURRENT contents and compare to the manifest `files` list: the set of paths AND every sha256 must match exactly. Any extra, missing, or modified file → STOP and show the difference; remove only what the user then approves. |
@@ -315,10 +324,12 @@ disk first — if the described mutation never happened, mark the entry
 | `mkdir` | remove `SKILLS_DIR` only if `"created": true` in the manifest AND the directory is now empty. |
 | `clone` | ask the user — a clone may hold their unrelated changes; default is keep. |
 
-Note: in project scope the installer may also have created the `.claude/` parent
-directory that HOLDS the manifest. That parent is intentionally retained after
-rollback — the manifest is the rollback record and must survive it. Do not
-remove it or report it as leftover debris.
+Note: in BOTH scopes (`~/.claude/` in user scope on a blank profile, `./.claude/`
+in project scope) the installer may have created the `.claude/` parent directory
+that HOLDS the manifest — creating it is a precondition of the first manifest
+save, not a tracked action. That parent is intentionally retained after
+rollback in either scope — the manifest is the rollback record and must survive
+it. Do not remove it or report it as leftover debris.
 
 Mark each undone entry `"status": "rolled_back"`, set `"rolled_back_at"`, and
 KEEP the manifest file as the record. Codex CLI install is not undone (§4).
