@@ -43,7 +43,7 @@ On a machine with Claude Code but nothing else prepared:
 1. Do NOT clone first. Open Claude Code anywhere and paste:
 
 ```
-I want to install Fable God Mode from https://github.com/nagarjuna-msr/fable-god-mode — set it up for me.
+I want to install Fable God Mode from https://github.com/nagarjuna-msr/fable-god-mode. Set it up for me.
 ```
 
 2. This exercises the clone-first path (INSTALLER.md Q3). Watch whether the

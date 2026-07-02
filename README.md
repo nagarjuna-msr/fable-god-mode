@@ -18,7 +18,7 @@ Both modes converge on the same operating discipline; Super God Mode is a strict
 
 **One line, any machine.** Paste this into any Claude Code session — no clone, no setup:
 
-> I want to install Fable God Mode from https://github.com/nagarjuna-msr/fable-god-mode — set it up for me.
+> I want to install Fable God Mode from https://github.com/nagarjuna-msr/fable-god-mode. Set it up for me.
 
 Claude fetches the installer spec, interviews you, and shows you every change before making it. Works the same in Opus sessions — the discipline is model-relative (see FAQ).
 
