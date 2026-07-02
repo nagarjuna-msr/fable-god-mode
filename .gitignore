@@ -1,1 +1,5 @@
 .DS_Store
+# A project-scope install into this clone (trying the skill out right here)
+# creates these — they are the tester's local state, never repo content.
+/CLAUDE.md
+/.claude/

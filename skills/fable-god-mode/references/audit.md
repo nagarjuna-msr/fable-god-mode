@@ -115,7 +115,7 @@ finding.
 - **Category:** <a–g> — <short category name>
 - **Evidence:** > <exact quoted snippet>
 - **Why it degrades Fable:** <one–two lines>
-- **Proposed remediation:** <archive | CLAUDE.md diff | leave-but-note>
+- **Proposed remediation:** <archive | CLAUDE.md diff | settings diff | leave-but-note>
 - **Confidence:** <LOW | MED | HIGH>
 ```
 
@@ -198,6 +198,9 @@ For any `CLAUDE.md diff` remediation:
 5. Never bulk-rewrite; never touch content inside another tool's sentinel block
    (see §7). fable-god-mode's own sentinel block may be edited only when the
    finding is about that block.
+6. A proposed `settings.json` edit (the "settings diff" remediation) follows
+   this exact same procedure: timestamped backup → unified diff → apply only on
+   approval → re-read to verify → one logical change per approval.
 
 ## 7. Out of scope
 

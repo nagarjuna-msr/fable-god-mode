@@ -85,7 +85,11 @@ re-run the installer later to upgrade; nothing about god mode blocks it).
 Free-tier → super is possible but warn about quota; let the user choose.
 
 **Q2 — scope.** "Install for all your projects (`~/.claude/skills/`) or only this
-project (`./.claude/skills/`)?" Default: all projects. Set:
+project (`./.claude/skills/`)?" Default: all projects. If the current project IS
+the fable-god-mode clone itself (P6 path == the working directory), say so:
+project scope would install into the clone — fine for trying the skill out (the
+repo's `.gitignore` keeps that install out of git), but choose all-projects to
+use it across your real work. Set:
 - user scope: `SKILLS_DIR=~/.claude/skills`, `CLAUDE_MD=~/.claude/CLAUDE.md`,
   `MANIFEST=~/.claude/fable-god-mode.manifest.json`
 - project scope: `SKILLS_DIR=./.claude/skills`, `CLAUDE_MD=./CLAUDE.md`,
