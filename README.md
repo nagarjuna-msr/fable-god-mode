@@ -35,18 +35,26 @@ Then in Claude Code, say:
 
 (or "Set up Fable Super God Mode"). Claude reads `INSTALLER.md` and runs an interview: it shows you a preflight report first, asks for explicit consent before any change, shows diffs before editing `CLAUDE.md`, records every change in a manifest for rollback, and finishes with a verification checklist. Nothing is touched without your OK.
 
-**Secondary path (plugin marketplace).**
+**Alternative: install as a Claude Code plugin.** Use this only if you already
+manage plugins; the one-liner above is simpler and ends in the same place.
 
-```
-/plugin marketplace add nagarjuna-msr/fable-god-mode
-/plugin install fable-god-mode@fable-god-mode        # and/or fable-super-god-mode@fable-god-mode
-/reload-plugins
-```
+> Note: `/plugin` commands work in the **terminal** version of Claude Code
+> (run `claude` in a terminal). The desktop app will say the command isn't
+> recognized — that's expected, not a bug.
 
-This installs the skills. To reach the identical end state as the agent-driven
-path (managed CLAUDE.md block, Codex wiring and smoke test, audit offer), then
-say: **"Finish Fable God Mode setup"** — the installer detects the plugin
-install and completes the rest.
+1. In a Claude Code terminal session, register the marketplace:
+   `/plugin marketplace add nagarjuna-msr/fable-god-mode`
+2. Install the skill you want (or both):
+   `/plugin install fable-god-mode@fable-god-mode`
+   `/plugin install fable-super-god-mode@fable-god-mode`
+3. Activate without restarting: `/reload-plugins`
+4. The plugin gives you the skills. To get the full setup (managed CLAUDE.md
+   block, Codex wiring and smoke test, audit offer), say:
+   **"Finish Fable God Mode setup"** — the installer detects the plugin install
+   and completes the rest without duplicating anything.
+
+Either path can be undone any time with: **"Undo the fable-god-mode install"**
+(plugin copies are removed with `/plugin uninstall`).
 
 ## What the installer will and won't do
 
