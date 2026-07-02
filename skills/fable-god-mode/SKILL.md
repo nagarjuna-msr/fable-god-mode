@@ -97,6 +97,17 @@ and the Fable session cleaner.
 Defer **all** audit procedure — rules, archive, and restore steps — to `references/audit.md`.
 The scan never modifies files on its own; it reports.
 
+## Scope & control
+
+- **A discipline, not a gate.** This skill never blocks a response and never
+  forces a tool call. When the user asks to skip it — "just do it inline",
+  "no delegation this time", "skip god mode" — comply without ceremony, for
+  that task or that whole session. The user is always in control.
+- **Model-relative.** If the session runs a different premium model (e.g.
+  Opus), apply the same loop relative to it: plan and review at the session
+  model's full power, delegate the verbose middle to cheaper models. The
+  savings are largest on Fable 5, but the discipline is not Fable-only.
+
 ## References
 
 These load on demand — read them when the task calls for it, not preemptively.

@@ -438,7 +438,7 @@ Template (fill `<...>`; drop the Codex line entirely in god mode):
 ```markdown
 <!-- BEGIN fable-god-mode v0.1.0 mode=<god|super> -->
 ## Fable God Mode (managed — re-run the installer to change; do not hand-edit)
-- Operate every multi-step task with the `fable-god-mode` skill: 10-80-10 — plan at full power, delegate the verbose middle to cheaper subagents, review at full power.
+- Default discipline for multi-step tasks: the `fable-god-mode` skill (10-80-10 — plan at full power, delegate the verbose middle to cheaper subagents, review at full power). The user may skip it for any task or session by saying so.
 - Deterministic work: route independent critiques through the `fable-super-god-mode` skill (Codex model: `<validated-model>`, validated <date>).
 - Installed <date> · scope: <all projects|this project> · manifest: <MANIFEST>
 <!-- END fable-god-mode -->

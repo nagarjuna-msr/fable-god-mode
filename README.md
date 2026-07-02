@@ -129,6 +129,12 @@ Yes. Set `CODEX_MODEL` or pass `--model`; the choice is validated by a probe bef
 **Is my code sent anywhere in God Mode?**
 No. God Mode sends nothing beyond your normal Claude session. Only Super God Mode contacts OpenAI, and only with your explicit consent.
 
+**Does it only work with Fable 5?**
+The discipline is model-relative: plan and review at your session model's full power, delegate the verbose middle to cheaper models. It pays on any premium session model (Opus included); it pays most on Fable 5.
+
+**Am I locked into the discipline once installed?**
+No. It is a default, not a gate — say "skip god mode for this task" (or session) and Claude complies. Install project-only if you want it scoped, and uninstall is one prompt, fully reversible. The skill never blocks a response or forces a tool call — that would make it exactly the kind of config its own audit flags.
+
 ## Credits & license
 
 - **[AgentBridge](https://github.com/quilin-ai/agent-bridge)** (MIT) — the inspiration and the advanced live-bridge path. It is a documented option here, never touched by the installer.
