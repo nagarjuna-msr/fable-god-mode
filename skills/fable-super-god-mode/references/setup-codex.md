@@ -86,6 +86,8 @@ If it still reports not logged in, retry §4 or see §6.
 
 The smoke test confirms `gpt-5.5` actually answers through the bridge. The bridge passes `-m gpt-5.5` explicitly — the CLI's built-in default has lagged behind the recommended model, so never rely on it.
 
+Path note: `${CLAUDE_SKILL_DIR}` below means the directory containing this skill's SKILL.md. After install that is the installed skill path; DURING install (INSTALLER.md Phase 4, before the skill is installed) substitute the repo clone's `skills/fable-super-god-mode` instead.
+
 ```bash
 printf 'Reply with the single word OK.\n' > /tmp/codex-probe.txt
 node "${CLAUDE_SKILL_DIR}/scripts/ask-codex.mjs" /tmp/codex-probe.txt

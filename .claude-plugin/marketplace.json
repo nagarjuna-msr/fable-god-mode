@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "fable-god-mode",
+  "owner": {
+    "name": "Nagarjuna Mullapudi"
+  },
+  "description": "Fable God Mode — token-discipline orchestration skills for Claude Code: Fable 5 plans and reviews, cheaper models execute, with an optional GPT-5.5 (Codex) independent-critic tier",
+  "version": "0.1.0",
+  "plugins": [
+    {
+      "name": "fable-god-mode",
+      "displayName": "Fable God Mode",
+      "source": "./skills/fable-god-mode",
+      "description": "10-80-10 token discipline for Fable 5 sessions: plan at full power, delegate the verbose middle 80% to cheaper Claude subagents, review at full power. Includes the report-only stale-config audit. Needs only a Claude subscription."
+    },
+    {
+      "name": "fable-super-god-mode",
+      "displayName": "Fable Super God Mode",
+      "source": "./skills/fable-super-god-mode",
+      "description": "Adds GPT-5.5 (via the OpenAI Codex CLI) as an independent deterministic critic: tri-state verdict bridge (approved/findings/codex_unavailable), union rule, critique log. Requires fable-god-mode plus a paid ChatGPT plan with Codex CLI."
+    }
+  ]
+}

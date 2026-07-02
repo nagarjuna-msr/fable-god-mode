@@ -71,7 +71,9 @@ retired models and contradicts a Fable-first session.
 ### d. Oversized CLAUDE.md
 Look for: any CLAUDE.md over 200 lines; large specialized instruction blocks
 (language-specific style guides, one-off runbooks, tool tutorials) embedded
-inline that would fit better as an on-demand skill.
+inline that would fit better as an on-demand skill. The line count EXCLUDES any
+fable-god-mode managed block — the audit never counts the installer's own
+lines toward the debt it reports.
 Why it degrades Fable: Anthropic's cost docs say "Aim to keep CLAUDE.md under
 200 lines by including only essentials." Skills load on demand, so moving
 specialized instructions out of CLAUDE.md into skills keeps base context
@@ -185,7 +187,10 @@ Trigger phrase: the user says **"restore my archived skills from <date>"**.
 For any `CLAUDE.md diff` remediation:
 
 1. **Backup first:** copy the file to `CLAUDE.md.bak-<ISO>` (alongside the
-   original) BEFORE touching it.
+   original) BEFORE touching it. If this same run already produced a backup of
+   this file (e.g. the installer's `claude_md_backup` minutes earlier), you may
+   reuse it instead of writing a second one — state in the report which backup
+   path the edit relies on.
 2. **Show a unified diff** of the proposed change and wait for approval.
 3. **Apply only on approval.** One logical change per approval — do not bundle
    unrelated edits into a single diff.
