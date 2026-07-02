@@ -126,7 +126,7 @@ the user saw, not a substitute.
 If cloning is planned (Q3): determine the clone source in this order —
 (1) `git remote get-url origin` run in the directory this INSTALLER.md came
 from, if it is a git checkout; (2) the URL published in README.md's Install
-section; (3) ask the user for it. If none yields a real URL (a `<OWNER>`
+section; (3) ask the user for it. If none yields a real URL (a `nagarjuna-msr`
 placeholder is NOT a real URL), STOP — never guess a remote.
 
 Then ask: **"Proceed? yes/no"** — STOP until answered. No → end politely; nothing

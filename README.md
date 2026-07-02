@@ -19,7 +19,7 @@ Both modes converge on the same operating discipline; Super God Mode is a strict
 **Primary path (agent-driven).** Clone the repo, open Claude Code in it, and ask:
 
 ```bash
-git clone https://github.com/<OWNER>/fable-god-mode
+git clone https://github.com/nagarjuna-msr/fable-god-mode
 cd fable-god-mode
 ```
 
@@ -32,7 +32,7 @@ Then in Claude Code, say:
 **Secondary path (plugin marketplace).**
 
 ```
-/plugin marketplace add <OWNER>/fable-god-mode
+/plugin marketplace add nagarjuna-msr/fable-god-mode
 /plugin install fable-god-mode@fable-god-mode        # and/or fable-super-god-mode@fable-god-mode
 /reload-plugins
 ```

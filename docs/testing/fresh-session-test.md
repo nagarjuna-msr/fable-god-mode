@@ -13,7 +13,7 @@ marketplace path.
 
 ## Test A — God Mode, fresh session (naive user)
 
-Setup: `git clone <repo-url> && cd fable-god-mode`, open a fresh Claude Code
+Setup: `git clone https://github.com/nagarjuna-msr/fable-god-mode && cd fable-god-mode`, open a fresh Claude Code
 session in that directory. Paste exactly:
 
 ```
@@ -43,7 +43,7 @@ On a machine with Claude Code but nothing else prepared:
 1. Do NOT clone first. Open Claude Code anywhere and paste:
 
 ```
-I want to install Fable God Mode from https://github.com/<OWNER>/fable-god-mode — set it up for me.
+I want to install Fable God Mode from https://github.com/nagarjuna-msr/fable-god-mode — set it up for me.
 ```
 
 2. This exercises the clone-first path (INSTALLER.md Q3). Watch whether the
@@ -57,7 +57,7 @@ I want to install Fable God Mode from https://github.com/<OWNER>/fable-god-mode 
 In a fresh session:
 
 ```
-/plugin marketplace add <OWNER>/fable-god-mode
+/plugin marketplace add nagarjuna-msr/fable-god-mode
 /plugin install fable-god-mode@fable-god-mode
 /reload-plugins
 ```
