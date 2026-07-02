@@ -13,13 +13,38 @@ What gets installed, by mode:
 | **god** | `fable-god-mode` | none (Claude subscription only) |
 | **super** | `fable-god-mode` + `fable-super-god-mode` | paid ChatGPT plan + Codex CLI |
 
+## 0.0 Bootstrap — obtaining this spec (read this first on a machine with no clone)
+
+You must execute this spec VERBATIM, so you must first possess its exact text:
+
+- If a local clone exists, read the file from it. Done.
+- If the user gave only a repo URL, fetch the RAW file (e.g.
+  `https://raw.githubusercontent.com/<owner>/fable-god-mode/main/INSTALLER.md`)
+  — a raw fetch is read-only and mutates nothing. NEVER work from a summarizing
+  fetcher or search snippet: a paraphrased spec is not this spec.
+- If raw fetching is unavailable, ask the user before cloning: "I need to
+  download the repo to read the installer — OK to clone it to `~/fable-god-mode`?"
+  A clone made with that yes (or one the user's own request already named) IS the
+  Q3/P6 clone: surface it in the Phase 3 plan as already-performed and record it
+  in the manifest as the `clone` action once Phase 5 starts. This is the SOLE
+  exception to Ground rule 1, and it carries its own cleanup rule: **if the run
+  ends for any reason before Phase 5** (user aborts, preflight hard-stops, plan
+  declined), you made a clone that no manifest records — say so and offer to
+  remove it before ending. No other mutation is permitted before Phase 3
+  approval.
+- **Once a clone exists, its INSTALLER.md is authoritative.** If you bootstrapped
+  from a raw fetch, compare it against the cloned file; if they differ (a push
+  landed in between), STOP and restart from Phase 1 using the cloned spec —
+  never keep executing a spec that doesn't match the repo you installed.
+
 ## 0. Ground rules (bind every phase)
 
 1. **Transaction order.** NOTHING on this machine is created, edited, linked, or
    moved until Phase 1 (preflight) has passed, Phase 2 (interview) has collected
    every consent, and Phase 3 (plan) has been approved. All mutations happen in
-   Phase 5, in manifest order. The one exception — Codex CLI install/login
-   (Phase 4) — is itself consent-gated and explicitly marked non-rollbackable.
+   Phase 5, in manifest order. Two named exceptions only, each consent-gated:
+   the §0.0 bootstrap clone (with its pre-Phase-5 abort-cleanup rule) and the
+   Codex CLI install/login (Phase 4, explicitly non-rollbackable).
 2. **Consent is per-change-class, explicit, and never assumed.** The consents are
    C1 (install skills), C2 (data disclosure to OpenAI — super only), C3 (install
    the Codex CLI — super only, only if missing), C4 (edit CLAUDE.md — shown as a
@@ -100,8 +125,11 @@ use it across your real work. Set:
   **symlink** each skill dir into `SKILLS_DIR` (updates arrive via `git pull`).
 - On Windows: default = **copy** (symlinks require Developer Mode/admin); offer
   symlink only if the user confirms symlinks work on their setup.
-- If there is no local clone: ask where to clone (default `~/fable-god-mode`),
-  record that cloning is part of the plan, then default per the rules above.
+- If there is no local clone: explain in plain language ("a clone is just a
+  downloaded copy of the project; it stays on your machine and updates with
+  `git pull`"), ask where to put it (default `~/fable-god-mode`), record that
+  cloning is part of the plan — and once the clone exists, the symlink/copy
+  defaults above apply to it.
 - The user may always choose copy over symlink.
 
 **Q4 — audit offer.** "After install, want a stale-config audit? It is
@@ -134,8 +162,9 @@ the user saw, not a substitute.
 If cloning is planned (Q3): determine the clone source in this order —
 (1) `git remote get-url origin` run in the directory this INSTALLER.md came
 from, if it is a git checkout; (2) the URL published in README.md's Install
-section; (3) ask the user for it. If none yields a real URL (a `nagarjuna-msr`
-placeholder is NOT a real URL), STOP — never guess a remote.
+section; (3) ask the user for it. If none yields a real URL — an unfilled angle-bracket
+template like `<owner>` or `<your-fork>` is NOT a real URL — STOP; never guess
+a remote.
 
 Then ask: **"Proceed? yes/no"** — STOP until answered. No → end politely; nothing
 has changed (say exactly that). Yes → C1/C3/C4 are now collected; continue.
@@ -326,7 +355,7 @@ disk first — if the described mutation never happened, mark the entry
 | `skill_install` (external) | NEVER remove — the installer did not create it. Report it ("present, externally managed — uninstall via its own path, e.g. `/plugin uninstall`"). |
 | `skill_remove` | nothing to undo (the removal was itself consented); report it. |
 | `mkdir` | remove `SKILLS_DIR` only if `"created": true` in the manifest AND the directory is now empty. |
-| `clone` | ask the user — a clone may hold their unrelated changes; default is keep. |
+| `clone` | if the manifest records the clone as installer-created: default is REMOVE — but ONLY after proving it pristine: `git status --porcelain -uall` empty (untracked files included), no unpushed commits, `git stash list` empty, AND no install artifacts inside it even if gitignored (`.claude/`, a root `CLAUDE.md`). Anything non-pristine → STOP and ask, listing what was found. If the user made the clone themselves: default is keep; ask. |
 
 Note: in BOTH scopes (`~/.claude/` in user scope on a blank profile, `./.claude/`
 in project scope) the installer may have created the `.claude/` parent directory

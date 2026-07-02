@@ -79,7 +79,7 @@ Read this before enabling Super God Mode.
 
 ## Windows
 
-Windows is fully supported through Node. The bridge is a `.mjs` script — no WSL or bash required — and the npm-shim spawn path is handled. Symlink-based installs may fall back to copies on Windows; the installed behavior is the same.
+Windows is supported through Node: the bridge is a `.mjs` script — no WSL or bash required — and the npm-shim spawn path is handled (with a fail-closed guard on cmd.exe quoting). Symlink installs fall back to copies on Windows; the installed behavior is the same. Honest status: macOS/Linux are tested end-to-end; the Windows-specific code paths are implemented and independently reviewed but not yet exercised on a physical Windows machine — if you hit anything, please open an issue.
 
 ## Repo map
 
