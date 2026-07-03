@@ -4,7 +4,7 @@
   "owner": {
     "name": "Nagarjuna Mullapudi"
   },
-  "description": "Fable God Mode — token-discipline orchestration skills for Claude Code: Fable 5 plans and reviews, cheaper models execute, with an optional GPT-5.5 (Codex) independent-critic tier",
+  "description": "Fable God Mode — token-discipline orchestration skills for Claude Code: Fable 5 plans and reviews, cheaper models execute, with an optional independent-critic tier (GPT-5.5 via Codex CLI, or Qwen Code's qwen3.7-plus — chosen at install)",
   "version": "0.1.0",
   "plugins": [
     {
@@ -17,7 +17,7 @@
       "name": "fable-super-god-mode",
       "displayName": "Fable Super God Mode",
       "source": "./skills/fable-super-god-mode",
-      "description": "Adds GPT-5.5 (via the OpenAI Codex CLI) as an independent deterministic critic: tri-state verdict bridge (approved/findings/codex_unavailable), union rule, critique log. Requires fable-god-mode plus a paid ChatGPT plan with Codex CLI."
+      "description": "Adds an independent deterministic critic — GPT-5.5 via the OpenAI Codex CLI, or Qwen Code's qwen3.7-plus via Alibaba Cloud Model Studio, chosen at install: tri-state verdict bridge (approved/findings/codex_unavailable), union rule, critique log. Requires fable-god-mode plus either a paid ChatGPT plan with Codex CLI, or an Alibaba Cloud Model Studio account with Qwen Code CLI."
     }
   ]
 }
