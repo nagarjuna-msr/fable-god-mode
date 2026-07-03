@@ -11,7 +11,7 @@ What gets installed, by mode:
 | Mode | Skills installed | Extra requirement |
 | --- | --- | --- |
 | **god** | `fable-god-mode` | none (Claude subscription only) |
-| **super** | `fable-god-mode` + `fable-super-god-mode` | paid ChatGPT plan + Codex CLI |
+| **super** | `fable-god-mode` + `fable-super-god-mode` | ONE of: paid ChatGPT plan + Codex CLI, OR Alibaba Cloud Model Studio account + Qwen Code CLI (choose the reviewer provider in Phase 2) |
 
 ## 0.0 Bootstrap — obtaining this spec (read this first on a machine with no clone)
 
@@ -44,12 +44,15 @@ You must execute this spec VERBATIM, so you must first possess its exact text:
    every consent, and Phase 3 (plan) has been approved. All mutations happen in
    Phase 5, in manifest order. Two named exceptions only, each consent-gated:
    the §0.0 bootstrap clone (with its pre-Phase-5 abort-cleanup rule) and the
-   Codex CLI install/login (Phase 4, explicitly non-rollbackable).
+   reviewer CLI install/auth — Codex CLI login or Qwen Code CLI key setup,
+   whichever provider was chosen (Phase 4, explicitly non-rollbackable).
 2. **Consent is per-change-class, explicit, and never assumed.** The consents are
-   C1 (install skills), C2 (data disclosure to OpenAI — super only), C3 (install
-   the Codex CLI — super only, only if missing), C4 (edit CLAUDE.md — shown as a
-   diff first). Audit remediation has its own per-item consent (C5) defined in
-   `skills/fable-god-mode/references/audit.md`.
+   C1 (install skills), C2 (data disclosure to the CHOSEN reviewer provider —
+   OpenAI if Codex, Alibaba Cloud Model Studio if Qwen — super only, scoped to
+   whichever one the user picked in Phase 2), C3 (install the chosen reviewer
+   CLI — Codex CLI or Qwen Code CLI — super only, only if missing), C4 (edit
+   CLAUDE.md — shown as a diff first). Audit remediation has its own per-item
+   consent (C5) defined in `skills/fable-god-mode/references/audit.md`.
 3. **Never delete user content.** The installer creates, links, and edits inside
    its own sentinel block. The audit archives (moves), never deletes. Backups are
    never deleted, even by rollback.
@@ -74,9 +77,11 @@ equivalents on Windows.
 | P3 | git | `git --version` |
 | P4 | Codex CLI | `codex --version` (missing is fine for god mode) |
 | P5 | Codex auth | `codex login status` — authenticated iff exit 0 (skip if P4 missing) |
+| P4q | Qwen Code CLI | `qwen --version` (missing is fine for god mode; also fine if the user will choose Codex) |
+| P5q | Qwen key present | does a Qwen provider key look configured — a `DASHSCOPE_API_KEY` env var, or a non-empty `env`/`modelProviders` entry in `~/.qwen/settings.json`? This is an EXISTENCE check only, never a validity claim — Qwen Code CLI has no `login status`-equivalent probe; the only proof of a working key is the Phase 4 model probe (skip if P4q missing) |
 | P6 | Repo location | is this session already inside a clone of `fable-god-mode` (INSTALLER.md + `skills/fable-god-mode/SKILL.md` present)? Record the absolute repo path. |
-| P7 | Existing installs | for BOTH scopes: does `<skills-dir>/fable-god-mode` or `<skills-dir>/fable-super-god-mode` exist (as dir or symlink, and pointing where)? |
-| P8 | Existing managed blocks | search user `~/.claude/CLAUDE.md` and project `./CLAUDE.md` for BOTH `<!-- BEGIN fable-god-mode` and `<!-- END fable-god-mode -->` — record version + mode from the sentinel. An unmatched (BEGIN without END, or END without BEGIN) or duplicated sentinel = the §9 damaged-block state; route there BEFORE any normal install. |
+| P7 | Existing installs | for BOTH scopes: does `<skills-dir>/fable-god-mode` or `<skills-dir>/fable-super-god-mode` exist (as dir or symlink, and pointing where)? If `fable-super-god-mode` exists, also record WHICH provider by checking its `scripts/` dir: exactly one of `ask-codex.mjs` (Codex) / `ask-qwen.mjs` (Qwen) is the healthy case. If NEITHER is present → record `provider: unknown`, route to §9 repair (the install is broken, not merely outdated). If BOTH are present → record `provider: ambiguous`, route to §9 repair (a prior install or provider-switch failed to prune the other script — Phase 5 action 3 requires exactly one to survive). Never guess which one is "active" from an ambiguous state. |
+| P8 | Existing managed blocks | search user `~/.claude/CLAUDE.md` and project `./CLAUDE.md` for BOTH `<!-- BEGIN fable-god-mode` and `<!-- END fable-god-mode -->` — record version + mode + `reviewer` from the sentinel (§9's Current-state check compares all three). An unmatched (BEGIN without END, or END without BEGIN) or duplicated sentinel = the §9 damaged-block state; route there BEFORE any normal install. |
 | P9 | Existing manifest | `~/.claude/fable-god-mode.manifest.json` and/or `./.claude/fable-god-mode.manifest.json` present? |
 | P10 | Skills dir pre-existing? | does `~/.claude/skills/` (and `./.claude/skills/` for project scope) already exist? (Determines the restart note in Phase 8.) |
 | P11 | CLAUDE.md size | line counts of `~/.claude/CLAUDE.md` and `./CLAUDE.md` (informational, for the audit offer) |
@@ -91,23 +96,40 @@ install state → tell the user and jump to §9 after the report.
 Ask concrete questions about facts the user knows. Do NOT ask the user to
 self-report what their plan includes — that is what probes are for.
 
-**Q1 — mode.** First echo the relevant preflight findings so the answer is
-informed — both cases: "Preflight found the Codex CLI installed but not logged
-in — Super God Mode would need a browser login from you", or "Preflight found
-the Codex CLI installed AND logged in — Super God Mode is fully available, no
-login step needed." When P5 already passed, Q1.2 below is informational only
-(Phase 4 will skip install/login and go straight to the model probe — do not
-tell an already-authenticated user to log in). Then ask, verbatim:
-1. "Do you want Claude to send selected code snippets to OpenAI (via Codex) for
-   review? This is what powers Super God Mode's second-model reviews. yes/no"
-   → a yes here IS consent **C2** (data disclosure). Record it.
-2. If yes: "Can you complete a browser login to ChatGPT on this machine? yes/no"
-3. If yes: "Do you have a paid ChatGPT plan (Plus or higher)? The free tier has
-   Codex but with a small quota. yes/no/free-tier"
+**Q1 — mode and reviewer provider.** First echo the relevant preflight findings
+so the answer is informed — e.g. "Preflight found the Codex CLI installed but
+not logged in — Super God Mode would need a browser login from you", "Preflight
+found a Qwen provider key configured but Qwen Code CLI not installed", or "Both
+Codex and Qwen Code CLI look available — Super God Mode can use either." When
+P5 (Codex) or P5q (Qwen) already looks satisfied for the chosen provider, the
+matching sub-question below is informational only (Phase 4 will skip
+install/auth and go straight to the model probe — do not tell an
+already-authenticated user to log in or re-enter a key). Then ask, verbatim:
 
-All yes → mode = **super**. Any no → mode = **god** (tell the user they can
-re-run the installer later to upgrade; nothing about god mode blocks it).
-Free-tier → super is possible but warn about quota; let the user choose.
+1. "Do you want Claude to send selected code snippets to a second AI model for
+   independent review? This is what powers Super God Mode's second-model
+   reviews. yes/no"
+2. If yes: "Which reviewer would you like: **Codex** (OpenAI's Codex CLI, model
+   `gpt-5.5`, needs a ChatGPT plan) or **Qwen** (Qwen Code CLI, model
+   `qwen3.7-plus`, needs an Alibaba Cloud Model Studio account)? codex/qwen"
+   → a yes to Q1.1 PLUS this provider choice together IS consent **C2** (data
+   disclosure), scoped to the chosen provider only — OpenAI if codex, Alibaba
+   Cloud Model Studio if qwen. Record both the yes and the provider.
+3. **If codex chosen:**
+   1. "Can you complete a browser login to ChatGPT on this machine? yes/no"
+   2. If yes: "Do you have a paid ChatGPT plan (Plus or higher)? The free tier
+      has Codex but with a small quota. yes/no/free-tier"
+4. **If qwen chosen:**
+   1. "Do you have (or can you create) an Alibaba Cloud Model Studio (DashScope)
+      account with an API key? yes/no" (there is no browser-login step for this
+      provider — auth is a key in an environment variable or config file, set
+      up in Phase 4)
+
+All yes (through the chosen provider's branch) → mode = **super**, with the
+chosen provider recorded. Any no → mode = **god** (tell the user they can
+re-run the installer later to upgrade, and can choose either provider then;
+nothing about god mode blocks it). Codex free-tier → super is possible but warn
+about quota; let the user choose.
 
 **Q2 — scope.** "Install for all your projects (`~/.claude/skills/`) or only this
 project (`./.claude/skills/`)?" Default: all projects. If the current project IS
@@ -148,16 +170,18 @@ Assemble and SHOW the complete plan before touching anything:
    copy, link targets).
 2. The exact managed block that will be inserted into `CLAUDE_MD` (Appendix B),
    shown as a unified diff against the current file. This is consent **C4**.
-3. Whether the Codex CLI will be installed (super, only if P4 missing) and by
-   which command. This is consent **C3**.
+3. Whether the chosen reviewer CLI (Codex CLI or Qwen Code CLI, per Q1) will be
+   installed (super, only if missing) and by which command. This is consent
+   **C3**.
 4. The manifest path and a one-line explanation: "every change is recorded here;
    'undo the fable-god-mode install' reverses it."
 
-Super-mode note on the block preview: the `codex_model` value is only validated
-in Phase 4. Show the block with the intended model marked "(pending validation)".
-If Phase 4 ends up validating a DIFFERENT model than the one shown, re-show the
-changed block line and get a fresh yes before Phase 5 writes it — C4 covers what
-the user saw, not a substitute.
+Super-mode note on the block preview: the `codex_model` / `qwen_model` value
+(whichever matches the chosen provider) is only validated in Phase 4. Show the
+block with the intended model marked "(pending validation)". If Phase 4 ends up
+validating a DIFFERENT model than the one shown, re-show the changed block line
+and get a fresh yes before Phase 5 writes it — C4 covers what the user saw, not
+a substitute.
 
 If cloning is planned (Q3): determine the clone source in this order —
 (1) `git remote get-url origin` run in the directory this INSTALLER.md came
@@ -169,29 +193,48 @@ a remote.
 Then ask: **"Proceed? yes/no"** — STOP until answered. No → end politely; nothing
 has changed (say exactly that). Yes → C1/C3/C4 are now collected; continue.
 
-## 4. Codex setup (super mode only; skip entirely for god mode)
+## 4. Reviewer bridge setup (super mode only; skip entirely for god mode)
 
-Follow `skills/fable-super-god-mode/references/setup-codex.md` §2–§5 exactly:
-agent probes → agent installs CLI if missing (uses C3) → **USER completes
-`codex login` in the browser** (the agent cannot; wait, then re-probe
-`codex login status`) → agent runs the bridge model probe.
+Follow the reference doc matching the provider chosen at Q1 — `setup-codex.md`
+for Codex, `setup-qwen.md` for Qwen. Both share the same shape: agent probes →
+agent installs the CLI if missing (uses C3) → auth step → agent runs the bridge
+model probe. The auth step differs by provider:
+
+- **Codex:** follow `skills/fable-super-god-mode/references/setup-codex.md`
+  §2–§5 exactly. **USER completes `codex login` in the browser** (the agent
+  cannot; wait, then re-probe `codex login status`).
+- **Qwen:** follow `skills/fable-super-god-mode/references/setup-qwen.md`
+  §2–§5 exactly. There is no browser login — the USER supplies (or the agent
+  helps set) a `DASHSCOPE_API_KEY` environment variable or a
+  `~/.qwen/settings.json` entry. There is no CLI-native "logged in" probe for
+  this provider; the model probe below is the ONLY proof auth actually works.
+  **Never have the agent print, log, or echo the raw key value** — per this
+  project's own data-handling norm, secrets pass through user-set environment
+  or the user's own file edit, not through agent output.
 
 **Probe path (binding):** in this phase the skill is NOT yet installed (that is
 Phase 5), so the bridge probe runs from the REPO clone, which P6/Q3 guarantees:
-`node "<repo>/skills/fable-super-god-mode/scripts/ask-codex.mjs" <prompt-file>`.
-Wherever setup-codex.md writes `${CLAUDE_SKILL_DIR}`, substitute
-`<repo>/skills/fable-super-god-mode` during install. The Phase 6 smoke test then
-re-runs the bridge from the INSTALLED path — both must pass.
+`node "<repo>/skills/fable-super-god-mode/scripts/ask-codex.mjs" <prompt-file>`
+(Codex) or `node "<repo>/skills/fable-super-god-mode/scripts/ask-qwen.mjs" <prompt-file>`
+(Qwen) — whichever matches the chosen provider. Wherever the reference doc
+writes `${CLAUDE_SKILL_DIR}`, substitute `<repo>/skills/fable-super-god-mode`
+during install. The Phase 6 smoke test then re-runs the bridge from the
+INSTALLED path — both must pass.
 
-- The model probe validates that `gpt-5.5` (or `CODEX_MODEL` override) actually
-  answers through `skills/fable-super-god-mode/scripts/ask-codex.mjs`. Record the
-  WORKING model value — it goes into the managed block in Phase 5.
+- The model probe validates that the default model (`gpt-5.5` / `qwen3.7-plus`,
+  or the matching `CODEX_MODEL` / `QWEN_MODEL` override) actually answers
+  through the chosen bridge script. Record the WORKING model value under the
+  matching field (`codex_model` or `qwen_model`) — it goes into the managed
+  block in Phase 5.
 - If the probe cannot be made to pass (no working model / auth impossible):
-  offer to continue as **god mode** (mode downgrade, with the user's OK) or stop.
-  Never install super-god-mode with a failing bridge.
-- **Non-rollbackable note:** installing the Codex CLI changes the machine outside
-  this installer's manifest scope. Rollback (§10) does NOT uninstall the Codex
-  CLI. Say this when C3 is used.
+  offer to continue as **god mode** (mode downgrade, with the user's OK), or —
+  if the OTHER provider's prerequisites are also available per preflight —
+  offer to switch provider and retry this phase once, or stop. Never install
+  super-god-mode with a failing bridge.
+- **Non-rollbackable note:** installing the Codex CLI or the Qwen Code CLI
+  changes the machine outside this installer's manifest scope. Rollback (§10)
+  does NOT uninstall either CLI. Say this when C3 is used, naming whichever CLI
+  was actually installed.
 
 ## 5. Managed writes (the only phase that mutates)
 
@@ -213,10 +256,34 @@ Actions, in order:
 1. `clone` (only if planned in Q3): clone the repo to the agreed path.
 2. `mkdir`: create `SKILLS_DIR` if missing (record whether it was created —
    restart note depends on it).
-3. `skill_install` × N: for `fable-god-mode` (always) and `fable-super-god-mode`
-   (super only): symlink `SKILLS_DIR/<name>` → `<repo>/skills/<name>`, or copy
-   the directory. Record type, path, target, and for copies a `sha256` of each
-   file copied.
+3. `skill_install` × N: for `fable-god-mode` (always): symlink
+   `SKILLS_DIR/<name>` → `<repo>/skills/<name>`, or copy the directory. Record
+   type, path, target, and for copies a `sha256` of each file copied.
+
+   `fable-super-god-mode` (super only) needs ONE extra step, because the repo
+   ships BOTH `scripts/ask-codex.mjs` and `scripts/ask-qwen.mjs` as source, but
+   only the CHOSEN provider's script may end up installed — SKILL.md and P7
+   both depend on "exactly one bridge script present" being true after
+   install, and a naive whole-directory install would leave both:
+   - **Copy:** copy the whole directory as normal, then DELETE the
+     non-chosen provider's `scripts/ask-<other>.mjs` from the INSTALLED copy
+     ONLY (never from the repo clone). Record `files` (for the §10 ownership
+     check) as the surviving file set — the deleted script is simply absent
+     from that list, not a separate tracked removal.
+   - **Symlink:** do NOT symlink the whole directory as one link (that would
+     expose both scripts through the repo clone, and there is no way to
+     "delete one file" from inside a whole-directory symlink without deleting
+     it from the repo clone itself). Instead: create
+     `SKILLS_DIR/fable-super-god-mode` as a REAL directory containing
+     individual symlinks — `SKILL.md` → repo file, `references/` → repo
+     directory (safe as a whole-dir link; nothing inside it needs pruning),
+     and `scripts/` as a REAL directory containing exactly ONE symlink,
+     `ask-<chosen-provider>.mjs` → the matching repo file. Record each
+     individual symlink's path and target in the manifest (not one directory
+     target).
+   Either way, the installed `fable-super-god-mode/scripts/` directory must
+   contain exactly one bridge script when this action completes — verify this
+   before marking the action `"done"`.
 4. `claude_md_backup`: copy `CLAUDE_MD` to `CLAUDE_MD.bak-<ISO-timestamp>` (only
    if the file exists; record the backup path). Backups are permanent.
 5. `claude_md_block`: insert the Appendix B block at the END of `CLAUDE_MD`
@@ -234,17 +301,19 @@ path (resolves the symlink); confirm the YAML frontmatter parses and the
 not a failure; the checklist says so.
 
 **Super mode (additionally):** run the bridge once end-to-end through the
-INSTALLED path:
+INSTALLED path, using whichever script matches the chosen provider:
 
 ```
 printf 'Bridge smoke test. There is no material to review. Respond with verdict "approved", an empty findings array, and summary "install smoke test OK".\n' > <tmpdir>/fgm-smoke.md
-node "SKILLS_DIR/fable-super-god-mode/scripts/ask-codex.mjs" <tmpdir>/fgm-smoke.md
+node "SKILLS_DIR/fable-super-god-mode/scripts/ask-codex.mjs" <tmpdir>/fgm-smoke.md   # Codex provider
+node "SKILLS_DIR/fable-super-god-mode/scripts/ask-qwen.mjs"  <tmpdir>/fgm-smoke.md   # Qwen provider
 ```
 
 Pass = exit 0 (or 10) AND the envelope parses with the expected fields.
 Exit 20 (`codex_unavailable`) = the install is NOT verified — show the
-envelope's `error`, route via `setup-codex.md` §5/§6, and either fix and re-test
-or record the install as "installed, bridge unverified" in both the manifest
+envelope's `error`, route via the matching reference doc's §5/§6
+(`setup-codex.md` or `setup-qwen.md`), and either fix and re-test or record the
+install as "installed, bridge unverified" in both the manifest
 (`"smoke": "failed"`) and the checklist. Never present exit 20 as success.
 Manifest `smoke` values are exactly: `"approved"` on pass, `"failed"` on fail,
 `"skipped"` in god mode.
@@ -265,6 +334,7 @@ archive-never-delete, manifest + restore path as that file specifies.
 ```
 Fable God Mode install — verification
 [ ] Mode: <god|super>   Scope: <all projects|this project>
+[ ] Reviewer provider:  <codex (gpt-5.5) | qwen (qwen3.7-plus) | n/a (god mode)>
 [ ] Skills installed:   <paths, symlink→target or copy>
 [ ] CLAUDE.md block:    v0.1.0 present once in <CLAUDE_MD> (backup: <path>)
 [ ] Manifest:           <MANIFEST> (rollback: say "undo the fable-god-mode install")
@@ -295,11 +365,13 @@ If preflight found existing install state (P7/P8/P9), first DISAMBIGUATE:
   (b) proceeds as a normal Phase 2→8 run for that scope.
 
 Before offering choices, check for the **Current** state: sentinel version equals
-the installer version, the mode matches what the user wants, and every manifest
-action re-verifies on disk using the SAME per-action ownership predicates §10
-defines — symlink: is-link AND target matches; copy: exact path-set AND every
-sha256 matches; block: sentinels present exactly once with version; backup:
-file still exists.
+the installer version, the mode matches what the user wants, the sentinel's
+`reviewer=` attribute matches the provider the user wants (super mode only —
+a version+mode match with a DIFFERENT reviewer is a provider-switch update, not
+current), and every manifest action re-verifies on disk using the SAME
+per-action ownership predicates §10 defines — symlink: is-link AND target
+matches; copy: exact path-set AND every sha256 matches; block: sentinels
+present exactly once with version; backup: file still exists.
 If so: report "already installed and up to date — nothing to do", make NO writes
 (no new manifest, no block rewrite), and skip straight to the Phase 8 checklist.
 
@@ -312,12 +384,35 @@ Otherwise, for the targeted install, ask which the user wants:
   against the CURRENT block content — if the user hand-edited inside the block,
   the diff will show those lines being discarded; point at them explicitly
   before asking for approval. Mode changes are updates too: god→super = also
-  run Phase 4; super→god = a `skill_remove` action (planned/done in the new
-  manifest like any mutation, with §10's ownership checks before removal) for
-  the super skill, plus the block update — Codex CLI itself is left untouched.
+  run Phase 4 (asking Q1's provider question fresh); super→god = a
+  `skill_remove` action (planned/done in the new manifest like any mutation,
+  with §10's ownership checks before removal) for the super skill, plus the
+  block update — the reviewer CLI itself (Codex or Qwen, whichever was
+  installed) is left untouched. **Provider switch within super mode**
+  (codex→qwen or qwen→codex, mode unchanged) is also an update: it needs a
+  FRESH **C2**/**C3** for the new provider (new data-disclosure destination,
+  possibly a new CLI to install), and re-runs the FULL `skill_install` for
+  `fable-super-god-mode` (Phase 5 action 3) — not merely a swap of the bridge
+  script. For a copy-method install this re-copies the ENTIRE installed
+  directory from the repo (SKILL.md, `references/`, both scripts) before
+  pruning the non-chosen one, so any user edits to installed files OTHER than
+  the bridge script are overwritten too — say so before proceeding. For a
+  symlink-method install, the individual `entries` symlinks are simply
+  re-pointed/re-created (nothing to overwrite, since symlinks hold no content
+  of their own). Either way, finish by updating the block's `reviewer=`
+  attribute and model field (`codex_model` ↔ `qwen_model`). The OLD provider's
+  CLI is left untouched on the machine (not uninstalled) — say so.
 - **Repair** (files missing/broken but block or manifest present): re-verify
   every manifest action; re-create what is missing; replace the block; re-run
-  smoke tests. Report what was fixed.
+  smoke tests. Report what was fixed. **If P7 reported `provider: ambiguous`**
+  (both bridge scripts present) or `provider: unknown` (neither present): the
+  existing manifest's `reviewer_provider` field is the authoritative answer if
+  present and still plausible (e.g. its CLI/key still looks available per
+  preflight); if the manifest is missing that field, or absent entirely, ASK
+  the user which provider they intend before touching anything — never guess
+  from which script happens to still be on disk. Treat the answer as this
+  repair's `reviewer_provider`, then prune the other script exactly as Phase 5
+  action 3 would on a fresh install.
 - **Remove**: run §10 (rollback) off the targeted install's manifest.
 - **Adopt** (skills already present — e.g. installed via the plugin marketplace —
   but no managed block or manifest): run Phases 2→8 normally but SKIP the
@@ -350,8 +445,8 @@ disk first — if the described mutation never happened, mark the entry
 | --- | --- |
 | `claude_md_block` | remove exactly the sentinel-bounded block; verify by re-read. Damaged sentinels → the §9 damaged-block procedure (bounded, shown, approved edit). Restoring the whole file from backup is a LAST resort, mid-setup only (see below), and always behind a shown diff. If the block action recorded `"created_file": true` and the file now contains nothing but our block, DELETE the file on a plain uninstall (the installer created it; say so in the report) — offer a keep/delete choice only when other content survives in it. |
 | `claude_md_backup` | KEEP the backup (never deleted). |
-| `skill_install` (symlink) | verify the path is STILL a symlink AND its current target equals the manifest `target`. Match → remove the symlink only, never the target. Mismatch (user replaced it with a real dir, another link, or plugin-managed content) → STOP and ask. |
-| `skill_install` (copy) | enumerate the directory's CURRENT contents and compare to the manifest `files` list: the set of paths AND every sha256 must match exactly. Any extra, missing, or modified file → STOP and show the difference; remove only what the user then approves. |
+| `skill_install` (symlink) | for a single-`target` entry (`fable-god-mode`, or any whole-directory symlink): verify the path is STILL a symlink AND its current target equals the manifest `target`. Match → remove the symlink only, never the target. Mismatch (user replaced it with a real dir, another link, or plugin-managed content) → STOP and ask. For `fable-super-god-mode`'s per-item `entries` list: apply this same check to EACH entry (the `SKILL.md` symlink, the `references/` symlink, and the one `scripts/ask-<provider>.mjs` symlink) individually — a mismatch on any single entry stops only that entry's removal, not the others; then remove the now-empty `scripts/` and skill directories. |
+| `skill_install` (copy) | enumerate the directory's CURRENT contents and compare to the manifest `files` list: the set of paths AND every sha256 must match exactly. Any extra, missing, or modified file → STOP and show the difference; remove only what the user then approves. (For `fable-super-god-mode`, the non-chosen provider's bridge script is correctly ABSENT from `files` per Phase 5's pruning — its absence is expected, not a mismatch.) |
 | `skill_install` (external) | NEVER remove — the installer did not create it. Report it ("present, externally managed — uninstall via its own path, e.g. `/plugin uninstall`"). |
 | `skill_remove` | nothing to undo (the removal was itself consented); report it. |
 | `mkdir` | remove `SKILLS_DIR` only if `"created": true` in the manifest AND the directory is now empty. |
@@ -365,7 +460,8 @@ rollback in either scope — the manifest is the rollback record and must surviv
 it. Do not remove it or report it as leftover debris.
 
 Mark each undone entry `"status": "rolled_back"`, set `"rolled_back_at"`, and
-KEEP the manifest file as the record. Codex CLI install is not undone (§4).
+KEEP the manifest file as the record. The reviewer CLI install (Codex or Qwen
+Code, whichever was set up) is not undone (§4).
 
 **Mid-setup abort vs later uninstall — the CLAUDE.md rule differs:**
 
@@ -397,6 +493,7 @@ confirms that specific item is theirs to remove.
   "mode": "super",
   "scope": "user",
   "repo_path": "/Users/you/fable-god-mode",
+  "reviewer_provider": "codex",
   "codex_model": "gpt-5.5",
   "started_at": "2026-07-02T10:00:00Z",
   "completed_at": "2026-07-02T10:04:12Z",
@@ -404,17 +501,41 @@ confirms that specific item is theirs to remove.
   "actions": [
     { "seq": 1, "type": "mkdir", "status": "done", "path": "/Users/you/.claude/skills", "created": false },
     { "seq": 2, "type": "skill_install", "status": "done", "method": "symlink", "path": "/Users/you/.claude/skills/fable-god-mode", "target": "/Users/you/fable-god-mode/skills/fable-god-mode" },
-    { "seq": 3, "type": "skill_install", "status": "done", "method": "symlink", "path": "/Users/you/.claude/skills/fable-super-god-mode", "target": "/Users/you/fable-god-mode/skills/fable-super-god-mode" },
+    { "seq": 3, "type": "skill_install", "status": "done", "method": "symlink", "path": "/Users/you/.claude/skills/fable-super-god-mode", "entries": [
+      { "path": "/Users/you/.claude/skills/fable-super-god-mode/SKILL.md", "target": "/Users/you/fable-god-mode/skills/fable-super-god-mode/SKILL.md" },
+      { "path": "/Users/you/.claude/skills/fable-super-god-mode/references", "target": "/Users/you/fable-god-mode/skills/fable-super-god-mode/references" },
+      { "path": "/Users/you/.claude/skills/fable-super-god-mode/scripts/ask-codex.mjs", "target": "/Users/you/fable-god-mode/skills/fable-super-god-mode/scripts/ask-codex.mjs" }
+    ] },
     { "seq": 4, "type": "claude_md_backup", "status": "done", "path": "/Users/you/.claude/CLAUDE.md", "backup_path": "/Users/you/.claude/CLAUDE.md.bak-2026-07-02T10-03-58Z" },
     { "seq": 5, "type": "claude_md_block", "status": "done", "path": "/Users/you/.claude/CLAUDE.md", "block_version": "0.1.0", "backup_path": "/Users/you/.claude/CLAUDE.md.bak-2026-07-02T10-03-58Z", "created_file": false }
   ]
 }
 ```
 
+If the chosen provider is Qwen instead, replace `"reviewer_provider": "codex"` /
+`"codex_model": "gpt-5.5"` with `"reviewer_provider": "qwen"` /
+`"qwen_model": "qwen3.7-plus"` — exactly one of `codex_model` / `qwen_model` is
+present, matching `reviewer_provider`. God-mode manifests omit `reviewer_provider`
+and both model fields entirely (there is no reviewer to record).
+
 Field notes:
+- `reviewer_provider` (super mode only): `"codex"` or `"qwen"`. Governs which of
+  `codex_model` / `qwen_model` is present, which bridge script `skill_install`
+  installed, and which reference doc (`setup-codex.md` / `setup-qwen.md`) Phase
+  4 followed. Absent in god-mode manifests.
 - `skill_install` with `"method": "copy"` additionally records
   `"files": [{ "path": "...", "sha256": "..." }]` — the complete list; §10's
-  copy-undo compares against it exactly.
+  copy-undo compares against it exactly. For `fable-super-god-mode`, this list
+  reflects the PRUNED installed set (Phase 5 action 3) — it never includes the
+  non-chosen provider's bridge script, because that file was deleted from the
+  installed copy before the manifest was written, not merely left untracked.
+- `skill_install` with `"method": "symlink"` for `fable-super-god-mode`
+  additionally records `"entries": [{ "path": "...", "target": "..." }, ...]`
+  — one entry per individual symlink (`SKILL.md`, `references/`, and the ONE
+  `scripts/ask-<provider>.mjs`) — instead of a single `target`, because Phase 5
+  action 3 requires per-item symlinks here, not a whole-directory link. (The
+  `fable-god-mode` skill has no provider split, so its `skill_install` keeps
+  the simple single-`target` shape.)
 - `skill_install` with `"method": "external"` (adopt path, §9) records the found
   path and, where known, `"provider"` (e.g. `"plugin-marketplace"`); §10 never
   removes it.
@@ -433,20 +554,31 @@ Field notes:
 ## Appendix B — managed CLAUDE.md block
 
 Exactly one block, sentinel-bounded, ≤10 lines inside, inserted at end of file.
-Template (fill `<...>`; drop the Codex line entirely in god mode):
+Template (fill `<...>`; drop the reviewer line entirely in god mode):
 
 ```markdown
-<!-- BEGIN fable-god-mode v0.1.0 mode=<god|super> -->
+<!-- BEGIN fable-god-mode v0.1.0 mode=<god|super> reviewer=<codex|qwen|none> -->
 ## Fable God Mode (managed — re-run the installer to change; do not hand-edit)
 - Default discipline for multi-step tasks: the `fable-god-mode` skill (10-80-10 — plan at full power, delegate the verbose middle to cheaper subagents, review at full power). The user may skip it for any task or session by saying so.
-- Deterministic work: route independent critiques through the `fable-super-god-mode` skill (Codex model: `<validated-model>`, validated <date>).
+- Deterministic work: route independent critiques through the `fable-super-god-mode` skill (reviewer: <reviewer-description>, validated <date>).
 - Installed <date> · scope: <all projects|this project> · manifest: <MANIFEST>
 <!-- END fable-god-mode -->
 ```
 
-The `v<X>` in the BEGIN sentinel is the installer version that wrote it; §9
-compares it on re-runs. The block deliberately stays under 10 lines — the
-discipline itself lives in the skills, which load on demand.
+Unlike the simple bare-word choices elsewhere in this template (`<god|super>`,
+`<all projects|this project>`), `<reviewer-description>` is NOT a literal
+pipe-separated token to fill in as-is — it is a single placeholder for exactly
+one fully-written phrase, chosen per `reviewer_provider`: `` Codex, model
+`gpt-5.5` `` or `` Qwen Code, model `qwen3.7-plus` `` (using whatever model
+value the Phase 4 probe actually validated). In god mode, drop the entire
+"Deterministic work" bullet line, not just this placeholder.
+
+The `v<X>` in the BEGIN sentinel is the installer version that wrote it; the
+`reviewer=` attribute is `none` in god mode, `codex` or `qwen` in super mode —
+§9 compares BOTH on re-runs (a version match with a DIFFERENT `reviewer` value
+is a provider-switch update, not "already current"). The block deliberately
+stays under 10 lines — the discipline itself lives in the skills, which load
+on demand.
 
 ## Appendix C — Windows command equivalents
 
