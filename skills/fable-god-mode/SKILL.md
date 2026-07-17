@@ -44,6 +44,10 @@ Route each task to the cheapest model that can do it well:
 - **Opus / Sonnet** — research fan-outs, first drafts of hard code or prose, analysis that
   needs reasoning. Sonnet for most; Opus when the draft is genuinely hard.
 
+**Name the model explicitly on EVERY subagent.** A premium parent's subagent that omits
+the model can silently inherit the premium model — the delegation then saves nothing while
+looking disciplined. An unnamed model is a routing bug, not a default.
+
 **Subagent contract** (put this in every delegation prompt): write full artifacts to disk;
 return a **compact summary of ≤10 lines** (what you did, where it lives, what to check next).
 The verbose output stays in the subagent's context, not yours.
@@ -58,6 +62,13 @@ concurrently. Only serialize when one task truly depends on another's output.
 - **Adjudicate findings on merit.** Accept what is correct, reject false positives with a
   stated reason, and fix what the subagent got wrong.
 - **Never rubber-stamp.** A returned "done" is a claim, not a verification.
+- **Receipts audit.** Before you repeat any claimed number — "12/12 passed", "$0.43 total",
+  "all 40 files migrated" — recompute it from the on-disk artifacts (count the files, sum
+  the log, run the test command). A summary's number is a claim; the disk is the truth.
+- **Falsify new checks before trusting them.** A check, gate, or smoke test you (or a
+  subagent) just wrote is untrusted until it FAILS a known-bad specimen AND PASSES a
+  known-good one. A green light from a check that has never seen a bad input proves the
+  check runs, not that it judges.
 - **Union rule.** A reviewer's silence or approval never removes a concern you already had.
   Findings ADD; they do not subtract. Your own review stands unless actively refuted.
 - Integrate the pieces into a coherent whole. This is your work, not the subagents'.
@@ -71,6 +82,23 @@ the hardest adjudication.
 Note: "Disabling thinking is not available on Fable 5, which always uses extended thinking."
 The cost lever on Fable 5 is the `/effort` level (low | medium | high | xhigh | max), **not**
 thinking toggles or `MAX_THINKING_TOKENS` — adaptive-reasoning models ignore nonzero token budgets.
+
+## Long-running & paid work
+
+Delegation moves *verbose* work off your context — it must never move *accountability* for
+a long or paid job into a place you cannot see. Rules of thumb, in any client that offers
+background execution and subagents (adapt to what your environment actually has):
+
+- **Own the clock on anything long or costly.** A batch that runs for minutes-to-hours, or
+  that spends money per call, should run where YOU can poll it — e.g. a background shell
+  command whose output lands in files — not buried inside a subagent's single turn.
+- **Receipts on disk.** Long jobs write per-item progress to files as they go (one line per
+  completed item). Progress you can `wc -l` beats progress someone remembers.
+- **Stall checks read the disk, not the narrative.** "Still working on it" is a claim; a
+  receipts file that hasn't grown in ten minutes is evidence. Check evidence.
+- **Subagents get bounded, finish-in-turn tasks.** If a task cannot finish inside the
+  subagent's own turn, restructure it (split it, or run it as your own background job) —
+  a subagent left "monitoring" a job it cannot finish is where work silently dies.
 
 ## When NOT to delegate
 

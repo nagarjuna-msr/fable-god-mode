@@ -1,7 +1,7 @@
 <!--
 critique-prompt.md — a model critique-request file that Claude writes to disk, then feeds to
 scripts/ask-codex.mjs as the <prompt-file> argument. It MUST be fully self-contained: Codex
-(GPT-5.5) runs as an independent critic with no access to this conversation, the repo, or prior
+(the Codex reviewer (gpt-5.6-sol)) runs as an independent critic with no access to this conversation, the repo, or prior
 turns. Everything the reviewer needs — spec, code, and the questions — lives in this one file.
 -->
 

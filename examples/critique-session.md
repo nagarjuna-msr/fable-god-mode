@@ -1,3 +1,8 @@
+> **Historical transcript (v0.1.0, recorded 2026-07-02).** These runs used the
+> then-default `gpt-5.5`; since v0.2.0 the default is `gpt-5.6-sol` and envelopes
+> additionally carry `requested_model` and `reported_model`. Kept verbatim as a
+> real session record — the workflow shown is unchanged.
+
 # Critique session — the bridge reviewing itself
 
 This is the actual critique history of `scripts/ask-codex.mjs` — the bridge you are using —

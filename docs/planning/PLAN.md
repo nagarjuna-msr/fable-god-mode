@@ -1,3 +1,5 @@
+> **v0.1.0-era planning document (2026-07-02). HISTORICAL — superseded by v0.2.0 (see CHANGELOG.md); model references reflect the v0.1.0 default gpt-5.5.**
+
 # fable-god-mode — open-source plan (v2.1, 2026-07-02, post Codex critique: 13/13 findings accepted)
 
 **NAMING — FINAL (user-approved):** Brand = **Fable God Mode** / **Fable Super God Mode**. Repo = `fable-god-mode`. Skill dirs = `skills/fable-god-mode/` and `skills/fable-super-god-mode/` (the `fable-` prefix avoids collisions with existing "god-mode" toolkits in users' ~/.claude/skills).

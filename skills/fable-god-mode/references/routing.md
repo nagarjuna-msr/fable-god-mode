@@ -22,6 +22,11 @@ Match the task to an executor before you act. When in doubt between two rows, as
 
 Model values for subagent configuration are `opus`, `sonnet`, `haiku` (see [model config](https://code.claude.com/docs/en/model-config)).
 
+**Every subagent carries an explicit model — no exceptions.** In many clients a subagent
+with no `model` set inherits the parent session's model. On a premium parent that means
+your "cheap" middle-80% agents silently run at premium price — the discipline defeated
+without a single visible error. Treat a delegation without an explicit model as a bug.
+
 ## 2. The delegation prompt contract
 
 A subagent starts with **zero conversation context**. It cannot see this thread, the plan, the files you've read, or anything you decided three turns ago. The delegation prompt is the agent's entire world. Write it as if the reader knows nothing — because it does.
@@ -88,3 +93,20 @@ Reserve `max` for genuinely hard adjudication where a wrong call is expensive. D
 - **Fable re-doing delegated work instead of reviewing it** — if you rewrite every draft wholesale, you paid premium tokens twice and delegated nothing.
 - **Delegating work smaller than its delegation prompt** — if writing the prompt costs more than doing the task, do the task inline.
 - **Fan-out without a review plan** — agents you launch but cannot review are work you dispatched but do not own.
+
+## 8. Optional pattern: independent second takes
+
+For a genuinely open design decision (an architecture choice, a migration strategy, a
+tricky API shape), one drafted answer — however good — anchors every later thought. The
+antidote is cheap: **two isolated takes before any synthesis.**
+
+- Launch two subagents (or one subagent + your own written take) on the SAME brief,
+  neither seeing the other's output. Write your own take down BEFORE reading theirs.
+- Synthesize claim-by-claim: where the takes independently agree, that convergence is
+  real signal. Where they diverge, classify — factual differences get checked; taste or
+  value differences go to the user as an explicit either/or, never silently averaged.
+- Keep it honest: never reward the more novel-sounding take for its novelty, and never
+  present a merged answer as if both takes endorsed it.
+
+Use sparingly — it doubles the drafting cost and earns it only when the decision is
+expensive to reverse.

@@ -1,31 +1,50 @@
 #!/usr/bin/env node
-// ask-codex.mjs — one-shot bridge: ask GPT-5.5 (via the OpenAI Codex CLI) for a
+// ask-codex.mjs — one-shot bridge to the Codex lane (the OpenAI Codex CLI) for a
 // structured critique. Part of Fable Super God Mode (fable-god-mode repo).
 // Zero runtime dependencies. Node >= 18. Cross-platform (macOS / Linux / Windows).
 //
 // Usage:
 //   node ask-codex.mjs <prompt-file> [--model <id>] [--timeout <seconds>]
+//   node ask-codex.mjs --probe      [--model <id>] [--timeout <seconds>]
 //
 //   <prompt-file>   Text/markdown file containing the FULL, self-contained critique
 //                   request. Its content (plus a fixed output-contract suffix) is the
 //                   ONLY input this bridge sends — no environment dumps. Codex runs in
 //                   a read-only sandbox from the current directory, so the prompt MAY
 //                   point it at absolute paths to read.
-//   --model <id>    Codex model id. Precedence: --model > CODEX_MODEL env > "gpt-5.5".
-//   --timeout <s>   Seconds before the codex run is killed (default 600).
+//   --probe         Cheap non-semantic liveness/model check: sends a fixed one-line
+//                   echo request (no user content, no schema) and CLASSIFIES the
+//                   outcome. Used by the installer and for fallback decisions.
+//   --model <id>    Codex model id. Precedence: --model > CODEX_MODEL env > "gpt-5.6-sol".
+//   --timeout <s>   Seconds before the codex run is killed (default 600; probe 120).
 //
-// Output: ONE JSON envelope on stdout:
+// Critique output: ONE JSON envelope on stdout:
 //   { "verdict": "approved" | "findings" | "codex_unavailable",
-//     "model": "...", "summary": "...", "findings": [...],
+//     "model": "...",              // legacy alias of requested_model
+//     "requested_model": "...",    // what this bridge asked for
+//     "reported_model": "...",     // what the CLI itself reported (null if absent —
+//                                  // NEVER inferred)
+//     "summary": "...", "findings": [...],
+//     "error": null | "...", "elapsed_ms": N }
+//
+// Probe output: ONE JSON envelope on stdout:
+//   { "probe": "probe_ok" | "model_rejected" | "auth_failure" | "cli_missing" |
+//              "network_failure" | "timeout" | "malformed_output" | "unavailable_other",
+//     "requested_model": "...", "reported_model": "..."|null,
 //     "error": null | "...", "elapsed_ms": N }
 //
 // Exit codes (tri-state verdict — deliberately NOT fail-open):
-//   0   approved           GPT-5.5 reviewed and found nothing to report
-//   10  findings           GPT-5.5 reviewed and reported findings (see envelope)
-//   20  codex_unavailable  NO review happened (codex missing / auth / timeout / bad
-//                          output). The caller MUST surface this to the user — an
-//                          outage must never read as a clean review.
-//   2   usage error        bad arguments or broken vendoring — a caller/install bug
+//   0   approved / probe_ok   review clean, or probe answered correctly
+//   10  findings              the review reported findings (see envelope)
+//   20  codex_unavailable     NO review/probe happened (codex missing / auth /
+//                             timeout / bad output). The caller MUST surface this —
+//                             an outage must never read as a clean review, and it
+//                             NEVER justifies a model fallback by itself.
+//   30  model_rejected        probe only: the CLI POSITIVELY rejected the requested
+//                             model id. This is the ONLY outcome that authorizes a
+//                             documented fallback (e.g. gpt-5.6-sol -> gpt-5.5),
+//                             and the fallback must be disclosed to the user.
+//   2   usage error           bad arguments or broken vendoring — a caller/install bug
 //
 // Invocation notes:
 // - The prompt is piped to `codex exec -` on stdin and stdin is closed (EOF).
@@ -48,14 +67,29 @@
 // Codex reads while handling it — to OpenAI.
 
 import { spawn } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const DEFAULT_MODEL = "gpt-5.5";
+const DEFAULT_MODEL = "gpt-5.6-sol";
 const DEFAULT_TIMEOUT_S = 600;
-const EXIT = { approved: 0, findings: 10, codex_unavailable: 20, usage: 2 };
+const DEFAULT_PROBE_TIMEOUT_S = 120;
+const EXIT = {
+  approved: 0,
+  probe_ok: 0,
+  findings: 10,
+  codex_unavailable: 20,
+  auth_failure: 20,
+  cli_missing: 20,
+  network_failure: 20,
+  timeout: 20,
+  malformed_output: 20,
+  unavailable_other: 20,
+  model_rejected: 30,
+  usage: 2,
+};
 const SEVERITIES = ["critical", "high", "medium", "low"];
 
 const t0 = Date.now();
@@ -73,15 +107,19 @@ const argv = process.argv.slice(2);
 let promptFile = null;
 let modelFlag = null;
 let timeoutFlag = null;
+let probeMode = false;
 
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === "-h" || a === "--help") {
     process.stdout.write(
       "usage: node ask-codex.mjs <prompt-file> [--model <id>] [--timeout <seconds>]\n" +
-        "exit codes: 0 approved | 10 findings | 20 codex_unavailable | 2 usage error\n"
+        "       node ask-codex.mjs --probe [--model <id>] [--timeout <seconds>]\n" +
+        "exit codes: 0 approved/probe_ok | 10 findings | 20 codex_unavailable | 30 model_rejected (probe) | 2 usage error\n"
     );
     process.exit(0);
+  } else if (a === "--probe") {
+    probeMode = true;
   } else if (a === "--model") {
     modelFlag = argv[++i];
     if (!modelFlag) usageError("--model requires a value");
@@ -100,7 +138,8 @@ for (let i = 0; i < argv.length; i++) {
   }
 }
 
-if (!promptFile) usageError("missing <prompt-file>");
+if (probeMode && promptFile) usageError("--probe takes no <prompt-file>");
+if (!probeMode && !promptFile) usageError("missing <prompt-file>");
 
 const model = modelFlag ?? process.env.CODEX_MODEL ?? DEFAULT_MODEL;
 // Whitelist the model id — it is the only user-controlled string that can reach
@@ -112,56 +151,117 @@ if (!/^[A-Za-z0-9._:-]{1,64}$/.test(model)) {
     }): only [A-Za-z0-9._:-] allowed`
   );
 }
-const timeoutS = timeoutFlag ? Number(timeoutFlag) : DEFAULT_TIMEOUT_S;
-
-let promptText;
-try {
-  promptText = fs.readFileSync(promptFile, "utf8");
-} catch (e) {
-  usageError(`cannot read prompt file ${promptFile}: ${e.message}`);
-}
-if (!promptText.trim()) usageError(`prompt file is empty: ${promptFile}`);
+const timeoutS = timeoutFlag
+  ? Number(timeoutFlag)
+  : probeMode
+    ? DEFAULT_PROBE_TIMEOUT_S
+    : DEFAULT_TIMEOUT_S;
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const schemaPath = path.join(scriptDir, "..", "references", "verdict-schema.json");
-let schemaText;
-try {
-  schemaText = fs.readFileSync(schemaPath, "utf8");
-  JSON.parse(schemaText); // vendored file must itself be valid JSON
-} catch (e) {
-  usageError(
-    `vendored schema missing or invalid at ${schemaPath} (${e.message}); ` +
-      `keep scripts/ and references/ together as shipped`
-  );
-}
 
 // ---------- payload ----------
-const payload =
-  promptText.replace(/\s+$/, "") +
-  `
+const probeNonce = probeMode ? crypto.randomBytes(4).toString("hex") : null;
+let payload;
+if (probeMode) {
+  payload = `Reply with exactly this text on one line and nothing else: PROBE_OK ${probeNonce}\n`;
+} else {
+  let promptText;
+  try {
+    promptText = fs.readFileSync(promptFile, "utf8");
+  } catch (e) {
+    usageError(`cannot read prompt file ${promptFile}: ${e.message}`);
+  }
+  if (!promptText.trim()) usageError(`prompt file is empty: ${promptFile}`);
+
+  let schemaText;
+  try {
+    schemaText = fs.readFileSync(schemaPath, "utf8");
+    JSON.parse(schemaText); // vendored file must itself be valid JSON
+  } catch (e) {
+    usageError(
+      `vendored schema missing or invalid at ${schemaPath} (${e.message}); ` +
+        `keep scripts/ and references/ together as shipped`
+    );
+  }
+
+  payload =
+    promptText.replace(/\s+$/, "") +
+    `
 
 --- OUTPUT CONTRACT (appended by ask-codex.mjs) ---
 Respond with ONLY a single JSON object matching this JSON Schema — no prose before or after, no code fences:
 ${schemaText.trim()}
 Use verdict "approved" only when you found nothing worth reporting; otherwise use "findings" and list each item. Report real issues only; do not invent findings to seem useful.
 `;
+}
 
 // ---------- envelope ----------
+// reported_model: parsed ONLY from the CLI's own banner/metadata (a line like
+// "model: <id>"), never inferred. Absent metadata => null.
+let reportedModel = null;
+function parseReportedModel(stderr) {
+  const m = /(?:^|\n)\s*model:\s*([A-Za-z0-9._:-]{1,64})\s*(?:\r?\n|$)/i.exec(stderr || "");
+  if (m) reportedModel = m[1];
+}
+
 function emit(envelope) {
   process.stdout.write(JSON.stringify(envelope, null, 2) + "\n");
-  process.exit(EXIT[envelope.verdict]);
+  process.exit(EXIT[envelope.verdict ?? envelope.probe]);
+}
+
+function emitProbe(outcome, error = null) {
+  emit({
+    probe: outcome,
+    requested_model: model,
+    reported_model: reportedModel,
+    error,
+    elapsed_ms: Date.now() - t0,
+  });
 }
 
 function unavailable(error, extra = {}) {
+  if (probeMode) {
+    // Probe callers classify; a generic failure here is unavailable_other.
+    emitProbe("unavailable_other", error);
+  }
   emit({
     verdict: "codex_unavailable",
     model,
+    requested_model: model,
+    reported_model: reportedModel,
     summary: "",
     findings: [],
     error,
     elapsed_ms: Date.now() - t0,
     ...extra,
   });
+}
+
+// ---------- probe outcome classification (POSITIVE matches only) ----------
+// The fallback rule depends on this: only an explicit, positively-classified
+// model rejection may authorize a model fallback. Ambiguous failures classify
+// as unavailable_other, which forbids fallback.
+// ORDER MATTERS: auth is classified BEFORE model rejection, because auth errors
+// often mention the word "model" ("no access token for model ...") and must
+// never authorize a fallback. Model rejection requires a phrase BOUND to the
+// model — two loose words anywhere in stderr are not evidence.
+function classifyProbeFailure(stderr) {
+  const s = stderr || "";
+  const has = (re) => re.test(s);
+  if (has(/(not\s+logged\s+in|log\s*in|login|auth(?:enticat|oriz)\w*|credential|access\s+token|401)/i))
+    return "auth_failure";
+  if (
+    has(/model[^\n]{0,60}?\b(?:is\s+)?(?:unknown|invalid|unsupported|not\s+(?:found|supported|available|recognized|authorized))/i) ||
+    has(/\b(?:unknown|invalid|unsupported|unavailable)\s+model\b/i) ||
+    has(/no\s+access\s+to\s+(?:the\s+)?model/i)
+  )
+    return "model_rejected";
+  if (has(/(is\s+not\s+recognized\s+as\s+an?\s+(?:internal|external)|command\s+not\s+found|\bnot\s+recognized\b[^\n]{0,40}command)/i))
+    return "cli_missing";
+  if (has(/(ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|proxy|\bdns\b|tls|connect(?:ion)?\s+(?:failed|refused|error))/i))
+    return "network_failure";
+  return "unavailable_other";
 }
 
 // ---------- temp output ----------
@@ -185,8 +285,7 @@ function cleanupTmp() {
 const cliArgs = [
   "exec",
   "-",
-  "--output-schema",
-  schemaPath,
+  ...(probeMode ? [] : ["--output-schema", schemaPath]),
   "-o",
   outFile,
   "--sandbox",
@@ -298,13 +397,17 @@ if (
   run = await runCodex({ viaShell: true });
 }
 
+parseReportedModel(run.stderr);
+
 if (run.spawnError) {
   cleanupTmp();
-  unavailable(
+  const msg =
     run.spawnError.code === "ENOENT"
       ? "codex CLI not found on PATH — install it (e.g. `npm install -g @openai/codex`) and run `codex login`"
-      : `could not launch codex CLI: ${run.spawnError.message}`
-  );
+      : `could not launch codex CLI: ${run.spawnError.message}`;
+  if (probeMode)
+    emitProbe(run.spawnError.code === "ENOENT" ? "cli_missing" : "unavailable_other", msg);
+  unavailable(msg);
 }
 
 function lastLine(s) {
@@ -314,15 +417,39 @@ function lastLine(s) {
 
 if (run.timedOut) {
   cleanupTmp();
-  unavailable(`codex run exceeded ${timeoutS}s and was killed — re-run or raise --timeout`);
+  const msg = `codex run exceeded ${timeoutS}s and was killed — re-run or raise --timeout`;
+  if (probeMode) emitProbe("timeout", msg);
+  unavailable(msg);
 }
 if (run.code !== 0) {
   const hint = lastLine(run.stderr);
   cleanupTmp();
-  unavailable(
-    `codex exited with code ${run.code}${run.signal ? ` (signal ${run.signal})` : ""}${
-      hint ? `: ${hint}` : ""
-    } — if this mentions auth, run \`codex login\``
+  const msg = `codex exited with code ${run.code}${run.signal ? ` (signal ${run.signal})` : ""}${
+    hint ? `: ${hint}` : ""
+  } — if this mentions auth, run \`codex login\``;
+  if (probeMode) emitProbe(classifyProbeFailure(run.stderr), msg);
+  unavailable(msg);
+}
+
+// ---------- probe: verify the echoed reply is EXACTLY the requested line ----------
+if (probeMode) {
+  let probeText = "";
+  try {
+    probeText = fs.readFileSync(outFile, "utf8");
+  } catch {
+    /* handled below as empty */
+  }
+  cleanupTmp();
+  const expected = `PROBE_OK ${probeNonce}`;
+  // Byte-for-byte equality; at most one terminal newline is tolerated.
+  if (probeText === expected || probeText === expected + "\n") {
+    emitProbe("probe_ok");
+  }
+  emitProbe(
+    "malformed_output",
+    `probe reply was not exactly the expected line (got: ${JSON.stringify(
+      probeText.slice(0, 120)
+    )})`
   );
 }
 
@@ -405,6 +532,8 @@ cleanupTmp();
 emit({
   verdict,
   model,
+  requested_model: model,
+  reported_model: reportedModel,
   summary,
   findings,
   error: null,

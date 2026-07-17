@@ -1,6 +1,6 @@
-# Three-Way Routing: When GPT-5.5 Joins the Loop
+# Three-Way Routing: When the Codex Reviewer Joins the Loop
 
-This is the routing reference for **Fable Super God Mode**. It answers one question: *when does work go to GPT-5.5 (via the Codex CLI) instead of — or in addition to — Fable or a Claude subagent, and how do you handle its verdicts?*
+This is the routing reference for **Fable Super God Mode**. It answers one question: *when does work go to the Codex reviewer (default model gpt-5.6-sol, via the Codex CLI) instead of — or in addition to — Fable or a Claude subagent, and how do you handle its verdicts?*
 
 For Claude-internal routing — which Claude model does what, fan-out discipline, the delegation prompt contract — see **fable-god-mode's routing playbook** (`skills/fable-god-mode/references/routing.md`). Do NOT re-derive any of that here; this file only covers the third lane.
 
@@ -10,9 +10,9 @@ For Claude-internal routing — which Claude model does what, fan-out discipline
 | --- | --- | --- |
 | **Fable 5** | Judgment | Planning, adjudication, integration, final quality. The orchestrator; owns every decision. |
 | **Claude subagents** (Opus/Sonnet/Haiku) | Volume | Research fan-outs, first drafts, mechanical work. See fable-god-mode's routing playbook. |
-| **GPT-5.5** (via Codex CLI) | Independent correctness signal | A SECOND pair of eyes from a different model family. Strongest on logic that has a right answer. |
+| **Codex reviewer** (default gpt-5.6-sol, via Codex CLI) | Independent correctness signal | A SECOND pair of eyes from a different model family. Strongest on logic that has a right answer. |
 
-Why the third lane works: GPT-5.5 comes from an independent training lineage, so its errors are **uncorrelated** with Claude's. When it disagrees with you, that disagreement is signal — not noise you can wave away.
+Why the third lane works: the Codex reviewer comes from an independent training lineage, so its errors are **uncorrelated** with Claude's. When it disagrees with you, that disagreement is signal — not noise you can wave away.
 
 The bridge is a fixed, vendored one-shot contract:
 
@@ -20,9 +20,9 @@ The bridge is a fixed, vendored one-shot contract:
 node "${CLAUDE_SKILL_DIR}/scripts/ask-codex.mjs" <prompt-file> [--model <id>] [--timeout <seconds>]
 ```
 
-The prompt file is a self-contained critique request. Output is a JSON envelope on stdout; `verdict` is one of `approved` | `findings` | `codex_unavailable`; exit codes are `0` / `10` / `20` (and `2` = usage error). Codex runs read-only-sandboxed and can read working-directory files the prompt points at. **Data leaves the machine to OpenAI** — treat every invocation as a disclosure.
+The prompt file is a self-contained critique request. Output is a JSON envelope on stdout; `verdict` is one of `approved` | `findings` | `codex_unavailable`; exit codes are `0` / `10` / `20` (and `2` = usage error; probe mode adds `30` = model_rejected). The envelope carries `requested_model` and `reported_model` (what the CLI itself reported, or null — never inferred). Model fallback is allowed ONLY on a positively-classified model rejection (probe outcome `model_rejected`), retrying once with `gpt-5.5` and disclosing it; auth/network/timeout failures never justify switching models. Codex runs read-only-sandboxed and can read working-directory files the prompt points at. **Data leaves the machine to OpenAI** — treat every invocation as a disclosure.
 
-## 2. When the GPT-5.5 lane fires (gating)
+## 2. When the Codex lane fires (gating)
 
 Fire the lane only when the work matches one of these four cases:
 
@@ -37,7 +37,7 @@ Fire the lane only when the work matches one of these four cases:
 
 ## 3. NOT for this lane
 
-Never route these to GPT-5.5:
+Never route these to the Codex reviewer:
 
 - **Creative work** — there is no right answer to check.
 - **Frontend / visual / UX** — correctness is subjective; a text-only critique can't see the rendering.
@@ -79,17 +79,17 @@ Report concrete defects with the input that triggers each. Skip style.
 
 - **`approved` (exit 0)** — proceed. But the **union rule** (below) still applies: approval never cancels a finding you already have open. GPT agreeing does not make your own concern disappear.
 - **`findings` (exit 10)** — adjudicate each finding **on merit**. Accept real ones and fix them; reject false positives WITH a stated reason. Neither blanket-accept nor blanket-dismiss — do the work item by item.
-- **`codex_unavailable` (exit 20)** — **NO review happened.** Say so plainly to the user: *"GPT-5.5 review did not run: `<error from envelope>`"*, then proceed on your own findings only. NEVER present unavailable as approved. NEVER silently skip past it. This tri-state design deliberately replaces fail-open bridges that print "approve" on error — an unavailable review is a known gap, not a green light.
+- **`codex_unavailable` (exit 20)** — **NO review happened.** Say so plainly to the user: *"Codex review did not run: `<error from envelope>`"*, then proceed on your own findings only. NEVER present unavailable as approved. NEVER silently skip past it. This tri-state design deliberately replaces fail-open bridges that print "approve" on error — an unavailable review is a known gap, not a green light.
 
 ## 6. The union rule & the feedback log
 
-**Union rule (exact):** GPT-5.5 findings ADD to Claude's own self-review. GPT's approval or silence NEVER drops a finding Claude already had. The merged set = **union** of both, each item adjudicated on merit.
+**Union rule (exact):** Codex findings ADD to Claude's own self-review. The reviewer's approval or silence NEVER drops a finding Claude already had. The merged set = **union** of both, each item adjudicated on merit.
 
 After every critique — for all three verdicts — append ONE line to the project's `.orchestration/feedback.jsonl`:
 
 ```jsonl
-{"ts": "2026-07-02T14:03:11Z", "artifact": "src/dates/inRange.ts", "reviewer": "gpt-5.5", "verdict": "findings", "findings": 3, "accepted": 2, "rejected": 1, "notes": "caught exclusive-boundary bug; DST claim was a false positive"}
-{"ts": "2026-07-02T15:22:40Z", "artifact": "retry backoff plan", "reviewer": "gpt-5.5", "verdict": "codex_unavailable", "findings": 0, "accepted": 0, "rejected": 0, "notes": "codex CLI not authenticated; proceeded on own review"}
+{"ts": "2026-07-02T14:03:11Z", "artifact": "src/dates/inRange.ts", "reviewer": "gpt-5.6-sol", "verdict": "findings", "findings": 3, "accepted": 2, "rejected": 1, "notes": "caught exclusive-boundary bug; DST claim was a false positive"}
+{"ts": "2026-07-02T15:22:40Z", "artifact": "retry backoff plan", "reviewer": "gpt-5.6-sol", "verdict": "codex_unavailable", "findings": 0, "accepted": 0, "rejected": 0, "notes": "codex CLI not authenticated; proceeded on own review"}
 ```
 
 Purpose: an audit trail of what the second model caught and what was rejected — evidence, over time, of whether this lane earns its cost.

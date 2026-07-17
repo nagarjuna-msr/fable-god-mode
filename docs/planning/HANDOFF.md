@@ -1,3 +1,5 @@
+> **v0.1.0-era handoff (2026-07-02). HISTORICAL — superseded by v0.2.0 (see CHANGELOG.md); decisions referencing GPT-5.5 as default are v0.1.0 provenance, not current guidance.**
+
 # HANDOFF — Fable God Mode build (written 2026-07-02, for a fresh session)
 
 ## What this is

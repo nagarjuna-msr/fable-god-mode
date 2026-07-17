@@ -1,24 +1,31 @@
 # Fable God Mode
 
-Two installable Claude Code skills that spend your premium model where it earns its keep and push the verbose middle of every task onto cheaper models. God Mode runs on a Claude subscription alone. Super God Mode adds GPT-5.5 as an independent, second-lineage reviewer through a paid ChatGPT plan you may already have. Installation is agent-driven: you clone the repo and tell Claude to set it up, and nothing on your machine is touched without an explicit OK.
+Two installable Claude Code skills that spend your premium model where it earns its keep and push the verbose middle of every task onto cheaper models. God Mode runs on a Claude subscription alone. Super God Mode adds an independent, second-lineage Codex reviewer (default model gpt-5.6-sol) through a paid ChatGPT plan you may already have. Installation is agent-driven: you clone the repo and tell Claude to set it up, and nothing on your machine is touched without an explicit OK.
 
 ## Two modes
 
 | | Fable God Mode | Fable Super God Mode |
 |---|---|---|
 | **Needs** | A Claude subscription | God Mode + a paid ChatGPT plan (Plus and up) + Codex CLI |
-| **Core idea** | The 10-80-10 loop: Fable 5 plans (10%) and reviews (10%); cheaper Claude subagents (Opus/Sonnet/Haiku) do the verbose middle 80% | Everything in God Mode, plus GPT-5.5 as a deterministic specialist and independent reviewer |
-| **Reviews** | Fable 5 reviews its own delegated work | Adds GPT-5.5: backend/algorithmic critique, plan critique, diff review, debugging second opinion |
+| **Core idea** | The 10-80-10 loop: Fable 5 plans (10%) and reviews (10%); cheaper Claude subagents (Opus/Sonnet/Haiku) do the verbose middle 80% | Everything in God Mode, plus a Codex reviewer (default gpt-5.6-sol, fallback gpt-5.5) as a deterministic specialist and independent reviewer |
+| **Reviews** | Fable 5 reviews its own delegated work | Adds the Codex reviewer: backend/algorithmic critique, plan critique, diff review, debugging second opinion |
 | **Stale-config audit** | Yes — report-only by default, reversible archival | Same |
 | **Sends code off your machine** | No | Only with explicit consent (see Data disclosure) |
 
 Both modes converge on the same operating discipline; Super God Mode is a strict superset.
 
+## What's new in v0.2.0
+
+- **Default reviewer model is now `gpt-5.6-sol`** (requested explicitly on every call). Availability depends on your Codex plan and CLI; `gpt-5.5` is an explicit fallback used ONLY after a positively-classified model rejection — never on auth, network, or timeout errors — and always disclosed. The bridge logs `requested_model` and `reported_model` separately and never infers one from the other.
+- **Cheap install probe.** `ask-codex.mjs --probe` is a non-semantic liveness check with classified outcomes (`probe_ok` / `model_rejected` / `auth_failure` / `cli_missing` / `network_failure` / `timeout` / `malformed_output` / `unavailable_other`). Installs verify with one probe + one tiny smoke review instead of two paid reviews.
+- **Four new operating rules** distilled from months of daily orchestration: long/paid work runs where the orchestrator can see it (receipts on disk, stall checks read evidence, never narratives); new checks are falsified both directions before being trusted; claimed numbers are recomputed from artifacts before being repeated; every subagent names its model explicitly (an unnamed model silently inherits the premium parent). Plus an optional independent-second-takes pattern for expensive design decisions.
+- **Honest scope:** tested configurations are macOS/Linux with Codex CLI 0.141.x; other platforms and CLI versions are not guaranteed. Windows remains implementation-reviewed but not physically tested. Offline, unauthenticated, or Claude-only environments can install God Mode; they cannot verify or install the Codex lane — the installer says so instead of pretending.
+
 ## Install
 
 **One line, any machine.** Paste this into any Claude Code session — no clone, no setup:
 
-> I want to install Fable God Mode from https://github.com/nagarjuna-msr/fable-god-mode. Set it up for me.
+> I want to install Fable God Mode v0.2.0 from https://github.com/nagarjuna-msr/fable-god-mode. Set it up for me.
 
 Claude fetches the installer spec, interviews you, and shows you every change before making it. Works the same in Opus sessions — the discipline is model-relative (see FAQ).
 
@@ -137,7 +144,7 @@ Cross-platform support, including Windows without WSL. The bridge is a single `.
 **What happens if Codex is down or logged out?**
 The bridge returns a tri-state verdict — `approved`, `findings`, or `codex_unavailable`. An outage surfaces as `codex_unavailable`; it can never masquerade as a clean review.
 
-**Can I use my own model instead of gpt-5.5?**
+**Can I use my own model instead of gpt-5.6-sol?**
 Yes. Set `CODEX_MODEL` or pass `--model`; the choice is validated by a probe before use.
 
 **Is my code sent anywhere in God Mode?**

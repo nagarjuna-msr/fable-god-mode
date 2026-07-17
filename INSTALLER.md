@@ -1,4 +1,4 @@
-# INSTALLER.md — Fable God Mode setup spec (v0.1.0)
+# INSTALLER.md — Fable God Mode setup spec (v0.2.0)
 
 **Audience: the Claude Code agent performing the install.** You are the EXECUTOR of
 this spec, not its interpreter. Follow the phases in order, exactly. Where the spec
@@ -18,9 +18,13 @@ What gets installed, by mode:
 You must execute this spec VERBATIM, so you must first possess its exact text:
 
 - If a local clone exists, read the file from it. Done.
-- If the user gave only a repo URL, fetch the RAW file (e.g.
-  `https://raw.githubusercontent.com/<owner>/fable-god-mode/main/INSTALLER.md`)
-  — a raw fetch is read-only and mutates nothing. NEVER work from a summarizing
+- If the user gave only a repo URL, fetch the RAW file **pinned to the release
+  tag** (e.g.
+  `https://raw.githubusercontent.com/<owner>/fable-god-mode/v0.2.0/INSTALLER.md`;
+  the README's install one-liner names the current tag). Only if the tag is
+  unknown and cannot be discovered (the releases page is unreachable) may you
+  fall back to `main` — and then SAY so: `main` is mutable, so record the
+  fetched commit if visible. A raw fetch is read-only and mutates nothing. NEVER work from a summarizing
   fetcher or search snippet: a paraphrased spec is not this spec.
 - If raw fetching is unavailable, ask the user before cloning: "I need to
   download the repo to read the installer — OK to clone it to `~/fable-god-mode`?"
@@ -174,18 +178,29 @@ has changed (say exactly that). Yes → C1/C3/C4 are now collected; continue.
 Follow `skills/fable-super-god-mode/references/setup-codex.md` §2–§5 exactly:
 agent probes → agent installs CLI if missing (uses C3) → **USER completes
 `codex login` in the browser** (the agent cannot; wait, then re-probe
-`codex login status`) → agent runs the bridge model probe.
+`codex login status`) → agent runs the bridge model probe:
+`node <bridge> --probe` — a cheap, non-semantic liveness check (a fixed echo;
+no user content, no paid review).
 
 **Probe path (binding):** in this phase the skill is NOT yet installed (that is
 Phase 5), so the bridge probe runs from the REPO clone, which P6/Q3 guarantees:
-`node "<repo>/skills/fable-super-god-mode/scripts/ask-codex.mjs" <prompt-file>`.
+`node "<repo>/skills/fable-super-god-mode/scripts/ask-codex.mjs" --probe`.
 Wherever setup-codex.md writes `${CLAUDE_SKILL_DIR}`, substitute
 `<repo>/skills/fable-super-god-mode` during install. The Phase 6 smoke test then
 re-runs the bridge from the INSTALLED path — both must pass.
 
-- The model probe validates that `gpt-5.5` (or `CODEX_MODEL` override) actually
-  answers through `skills/fable-super-god-mode/scripts/ask-codex.mjs`. Record the
-  WORKING model value — it goes into the managed block in Phase 5.
+- The model probe validates that `gpt-5.6-sol` (or `CODEX_MODEL` override)
+  actually answers through `skills/fable-super-god-mode/scripts/ask-codex.mjs
+  --probe`. Route on the CLASSIFIED outcome (setup-codex.md §5 is the taxonomy):
+  `probe_ok` → record the working model. `model_rejected` (exit 30) → the ONLY
+  outcome that authorizes fallback: re-probe with `--model gpt-5.5`, disclose
+  the fallback, and record the fallback model as the working value.
+  `auth_failure` / `cli_missing` / `network_failure` / `timeout` /
+  `malformed_output` / `unavailable_other` → NOT model problems: fix the named
+  cause (§3/§4/§6 of setup-codex.md) — never switch models on them.
+  Record in the manifest: the WORKING model (it goes into the managed block in
+  Phase 5), the probe outcome, `reported_model` from the envelope, and
+  `codex --version`.
 - If the probe cannot be made to pass (no working model / auth impossible):
   offer to continue as **god mode** (mode downgrade, with the user's OK) or stop.
   Never install super-god-mode with a failing bridge.
@@ -210,7 +225,11 @@ action completed and was verified in-phase.
 
 Actions, in order:
 
-1. `clone` (only if planned in Q3): clone the repo to the agreed path.
+1. `clone` (only if planned in Q3): clone the repo to the agreed path AND check
+   out the release tag this spec came from (e.g. `git clone --branch v0.2.0 …`,
+   or clone then `git checkout v0.2.0`); record the tag and resulting commit in
+   the manifest. A default-branch clone is mutable and must not silently become
+   the authoritative install source.
 2. `mkdir`: create `SKILLS_DIR` if missing (record whether it was created —
    restart note depends on it).
 3. `skill_install` × N: for `fable-god-mode` (always) and `fable-super-god-mode`
@@ -234,24 +253,41 @@ path (resolves the symlink); confirm the YAML frontmatter parses and the
 not a failure; the checklist says so.
 
 **Super mode (additionally):** run the bridge once end-to-end through the
-INSTALLED path:
+INSTALLED path (this is the ONE semantic call of the install — Phase 4's cheap
+`--probe` verified the model; this verifies the installed files + schema path):
 
 ```
 printf 'Bridge smoke test. There is no material to review. Respond with verdict "approved", an empty findings array, and summary "install smoke test OK".\n' > <tmpdir>/fgm-smoke.md
 node "SKILLS_DIR/fable-super-god-mode/scripts/ask-codex.mjs" <tmpdir>/fgm-smoke.md
 ```
 
-Pass = exit 0 (or 10) AND the envelope parses with the expected fields.
+Pass = exit 0 AND the envelope parses with the expected fields. Exit 10
+(`findings` on a no-material request) still proves the chain works but is an
+odd reviewer response: record it as `"smoke": "findings"` and show the finding
+verbatim in the checklist — never print it as "approved".
 Exit 20 (`codex_unavailable`) = the install is NOT verified — show the
 envelope's `error`, route via `setup-codex.md` §5/§6, and either fix and re-test
 or record the install as "installed, bridge unverified" in both the manifest
 (`"smoke": "failed"`) and the checklist. Never present exit 20 as success.
-Manifest `smoke` values are exactly: `"approved"` on pass, `"failed"` on fail,
+Manifest `smoke` values are exactly: `"approved"` (exit 0), `"findings"`
+(exit 10 — verified chain, odd verdict, shown verbatim), `"failed"` on fail,
 `"skipped"` in god mode.
 
 **Optional demo** (offer, don't push): plant an off-by-one in a 10-line function,
 run a critique, show the finding. This is a "see it work" moment — the smoke
 test above, not the demo, is the pass criterion.
+
+**Optional diagnostic mode** (user-invoked, never part of a standard install —
+it costs two paid reviews): "run the fable-god-mode bridge diagnostic". It
+falsifies the bridge BOTH directions: (1) a known-bad specimen (a short function
+with a planted off-by-one and a prompt that names the spec) MUST return
+`findings`; (2) a known-good no-op request MUST return `approved`. Any other
+result — including `codex_unavailable` on either leg — means the diagnostic is
+INCOMPLETE: report exactly which leg failed and why; never summarize a partial
+diagnostic as a pass. The immutable specimens live in
+`docs/testing/fixtures/known-bad.md` and `docs/testing/fixtures/known-good.md`;
+release testing runs this same pair before every tagged version per
+`docs/testing/release-gate.md`.
 
 ## 7. Stale-config audit (if Q4 = now)
 
@@ -266,9 +302,9 @@ archive-never-delete, manifest + restore path as that file specifies.
 Fable God Mode install — verification
 [ ] Mode: <god|super>   Scope: <all projects|this project>
 [ ] Skills installed:   <paths, symlink→target or copy>
-[ ] CLAUDE.md block:    v0.1.0 present once in <CLAUDE_MD> (backup: <path>)
+[ ] CLAUDE.md block:    v0.2.0 present once in <CLAUDE_MD> (backup: <path>)
 [ ] Manifest:           <MANIFEST> (rollback: say "undo the fable-god-mode install")
-[ ] Bridge smoke test:  <approved in N ms | SKIPPED (god mode) | FAILED: <error>>
+[ ] Bridge smoke test:  <approved in N ms | findings — shown verbatim below | SKIPPED (god mode) | FAILED: <error>>
 [ ] Restart needed:     <yes — SKILLS_DIR was created just now | no>
 [ ] Audit:              <N findings reported, M archived | deferred | declined>
 ```
@@ -393,11 +429,14 @@ confirms that specific item is theirs to remove.
 
 ```json
 {
-  "installer_version": "0.1.0",
+  "installer_version": "0.2.0",
   "mode": "super",
   "scope": "user",
   "repo_path": "/Users/you/fable-god-mode",
-  "codex_model": "gpt-5.5",
+  "codex_model": "gpt-5.6-sol",
+  "codex_model_probe": "probe_ok",
+  "codex_reported_model": "gpt-5.6-sol",
+  "codex_cli_version": "codex-cli 0.141.0",
   "started_at": "2026-07-02T10:00:00Z",
   "completed_at": "2026-07-02T10:04:12Z",
   "smoke": "approved",
@@ -406,7 +445,7 @@ confirms that specific item is theirs to remove.
     { "seq": 2, "type": "skill_install", "status": "done", "method": "symlink", "path": "/Users/you/.claude/skills/fable-god-mode", "target": "/Users/you/fable-god-mode/skills/fable-god-mode" },
     { "seq": 3, "type": "skill_install", "status": "done", "method": "symlink", "path": "/Users/you/.claude/skills/fable-super-god-mode", "target": "/Users/you/fable-god-mode/skills/fable-super-god-mode" },
     { "seq": 4, "type": "claude_md_backup", "status": "done", "path": "/Users/you/.claude/CLAUDE.md", "backup_path": "/Users/you/.claude/CLAUDE.md.bak-2026-07-02T10-03-58Z" },
-    { "seq": 5, "type": "claude_md_block", "status": "done", "path": "/Users/you/.claude/CLAUDE.md", "block_version": "0.1.0", "backup_path": "/Users/you/.claude/CLAUDE.md.bak-2026-07-02T10-03-58Z", "created_file": false }
+    { "seq": 5, "type": "claude_md_block", "status": "done", "path": "/Users/you/.claude/CLAUDE.md", "block_version": "0.2.0", "backup_path": "/Users/you/.claude/CLAUDE.md.bak-2026-07-02T10-03-58Z", "created_file": false }
   ]
 }
 ```
@@ -436,7 +475,7 @@ Exactly one block, sentinel-bounded, ≤10 lines inside, inserted at end of file
 Template (fill `<...>`; drop the Codex line entirely in god mode):
 
 ```markdown
-<!-- BEGIN fable-god-mode v0.1.0 mode=<god|super> -->
+<!-- BEGIN fable-god-mode v0.2.0 mode=<god|super> -->
 ## Fable God Mode (managed — re-run the installer to change; do not hand-edit)
 - Default discipline for multi-step tasks: the `fable-god-mode` skill (10-80-10 — plan at full power, delegate the verbose middle to cheaper subagents, review at full power). The user may skip it for any task or session by saying so.
 - Deterministic work: route independent critiques through the `fable-super-god-mode` skill (Codex model: `<validated-model>`, validated <date>).

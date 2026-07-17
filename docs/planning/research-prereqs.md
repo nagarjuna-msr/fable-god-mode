@@ -1,3 +1,5 @@
+> **v0.1.0-era research notes (2026-07-02). HISTORICAL — superseded by v0.2.0 (see CHANGELOG.md).**
+
 # Research: prerequisites for god-mode / super-god-mode skills
 
 Compiled 2026-07-02. VERIFIED = fetched primary source (or corroborated across 2+). UNVERIFIED = single secondary source / inferred.

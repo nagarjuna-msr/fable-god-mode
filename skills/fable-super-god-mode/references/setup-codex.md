@@ -1,6 +1,6 @@
-# Setup: Codex CLI (GPT-5.5 bridge)
+# Setup: Codex CLI (the Codex-lane bridge)
 
-This reference takes a machine from "no Codex" to "working bridge": the [OpenAI Codex CLI](https://developers.openai.com/codex/cli) installed and on `PATH`, authenticated, and `gpt-5.5` responding through the vendored bridge at `scripts/ask-codex.mjs`.
+This reference takes a machine from "no Codex" to "working bridge": the [OpenAI Codex CLI](https://developers.openai.com/codex/cli) installed and on `PATH`, authenticated, and the default model `gpt-5.6-sol` responding through the vendored bridge at `scripts/ask-codex.mjs`.
 
 The work splits two ways, and the split is load-bearing:
 
@@ -16,9 +16,9 @@ A finished setup satisfies three checks, in order of dependency:
 
 1. `codex` is installed and on `PATH` (`codex --version` prints e.g. `codex-cli 0.141.0`).
 2. It is authenticated (`codex login status` prints `Logged in using ChatGPT`, exit 0).
-3. `gpt-5.5` answers through the bridge — the smoke test returns a JSON envelope with verdict `approved` or `findings`.
+3. the model answers through the bridge — the probe returns `"probe": "probe_ok"`, exit 0.
 
-The bridge (`scripts/ask-codex.mjs`) needs Node ≥18, has zero dependencies, runs Codex read-only-sandboxed and non-interactive, and reports a tri-state verdict (`approved` | `findings` | `codex_unavailable`) via exit codes `0` / `10` / `20` (`2` = usage error). Windows is fully supported through Node — no WSL or bash needed.
+The bridge (`scripts/ask-codex.mjs`) needs Node ≥18, has zero dependencies, runs Codex read-only-sandboxed and non-interactive, and reports a tri-state verdict (`approved` | `findings` | `codex_unavailable`) via exit codes `0` / `10` / `20` (`2` = usage error; `--probe` mode adds `30` = model_rejected). Windows is fully supported through Node — no WSL or bash needed.
 
 ## 2. Preflight (Agent, read-only)
 
@@ -84,30 +84,37 @@ If it still reports not logged in, retry §4 or see §6.
 
 ## 5. Model probe (Agent)
 
-The smoke test confirms `gpt-5.5` actually answers through the bridge. The bridge passes `-m gpt-5.5` explicitly — the CLI's built-in default has lagged behind the recommended model, so never rely on it.
+The probe confirms the default model `gpt-5.6-sol` actually answers through the bridge — a cheap, non-semantic liveness check (a fixed one-line echo; no user content is sent, no review happens). The bridge always passes the model explicitly (`--model` > `CODEX_MODEL` env > default `gpt-5.6-sol`) — the CLI's built-in default has lagged behind the recommended model, so never rely on it.
 
 Path note: `${CLAUDE_SKILL_DIR}` below means the directory containing this skill's SKILL.md — the installed skill path. During install, the path is different: INSTALLER.md Phase 4's "Probe path (binding)" rule is the single source of truth (probe from the repo clone; the installed path is verified later in its Phase 6).
 
 ```bash
-printf 'Reply with the single word OK.\n' > /tmp/codex-probe.txt
-node "${CLAUDE_SKILL_DIR}/scripts/ask-codex.mjs" /tmp/codex-probe.txt
+node "${CLAUDE_SKILL_DIR}/scripts/ask-codex.mjs" --probe
 ```
 
-**Success:** a JSON envelope with verdict `approved` or `findings`, exit code `0` or `10`.
+**Success:** `{"probe": "probe_ok", ...}`, exit `0`. The envelope's `reported_model` is what the CLI itself printed (never inferred); record both it and `requested_model`.
 
-**Failure:** exit code `20` (`codex_unavailable`) means the chain is broken — read the envelope's `error` field and route:
+**Failure:** the probe CLASSIFIES the outcome — route on it, and never treat one class as another:
 
-- error names a missing binary → back to §3 (Install).
-- error names auth / login → back to §4 (Login).
-- error says the model was rejected → the plan may not offer `gpt-5.5`. Retry with a fallback via the `CODEX_MODEL` env var (known ids: `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex-spark`), or ask the user which model their plan offers:
+| Probe outcome (exit) | Meaning | Route |
+| --- | --- | --- |
+| `model_rejected` (30) | The CLI POSITIVELY rejected this model id | The ONLY case that authorizes fallback: retry once with `--model gpt-5.5` and disclose the fallback; if that also rejects, ask the user which model their plan offers |
+| `auth_failure` (20) | Not logged in / credentials | Back to §4 (Login). NOT a model problem — do not switch models |
+| `cli_missing` (20) | `codex` not on PATH | Back to §3 (Install) |
+| `network_failure` (20) | DNS / proxy / connectivity | Fix connectivity; retry. Do not switch models |
+| `timeout` (20) | Run exceeded the probe timeout | Retry; if persistent, raise `--timeout` |
+| `malformed_output` (20) | CLI ran but the echo did not come back | Retry once; if persistent, report honestly — the bridge chain is not verified |
+| `unavailable_other` (20) | Anything ambiguous | Report the `error` field verbatim; do NOT guess a cause and do NOT fall back |
 
 ```bash
-CODEX_MODEL=gpt-5.4 node "${CLAUDE_SKILL_DIR}/scripts/ask-codex.mjs" /tmp/codex-probe.txt
+node "${CLAUDE_SKILL_DIR}/scripts/ask-codex.mjs" --probe --model gpt-5.5   # fallback probe, only after exit 30
 ```
 
-The probe validates that whatever model value you use actually works before you rely on it.
+The probe validates that whatever model value you use actually answers before you rely on it. Record the WORKING model.
 
-Windows note: the examples above use POSIX syntax — in PowerShell write the probe file to `$env:TEMP\codex-probe.txt` and set the model with `$env:CODEX_MODEL = 'gpt-5.4'` before invoking `node`.
+**Compatibility policy:** the bridge is developed and tested against Codex CLI `0.141.x`–`0.144.x` and the documented `codex exec` flags (`--output-schema`, `-o`, `--sandbox`, `--ephemeral`, `--skip-git-repo-check`, `-m`). Record `codex --version` at setup. A different major/minor version is not automatically a problem — but if the bridge fails on flags or output shape after a CLI upgrade, report the version delta as the likely cause instead of debugging blind.
+
+Windows note: the examples above use POSIX syntax — in PowerShell set the model with `$env:CODEX_MODEL = 'gpt-5.5'` before invoking `node`.
 
 ## 6. Troubleshooting
 
@@ -115,7 +122,7 @@ Windows note: the examples above use POSIX syntax — in PowerShell write the pr
 | --- | --- | --- |
 | `codex: command not found` | Not on `PATH` yet | Open a new terminal / restart the shell; re-check the install dir is on `PATH`; re-run §3 |
 | Login loop or "upgrade" prompt on a valid plan | Known auth edge case | Re-run `codex login`; confirm the plan status at chatgpt.com |
-| Model rejected in the probe | Plan doesn't offer `gpt-5.5` | Set `CODEX_MODEL` to a model your plan offers (§5) |
+| Probe exits 30 (`model_rejected`) | Plan doesn't offer `gpt-5.6-sol` | Fall back to `gpt-5.5` (disclosed), or set `CODEX_MODEL` to a model your plan offers (§5) |
 | Quota exhausted | Agentic usage limit hit | Run `/status` inside a Codex session; wait for the window to reset or add credits |
 | Envelope exit `20` with a timeout | Slow / transient run | Re-run; if it persists, raise the bridge's `--timeout` |
 
