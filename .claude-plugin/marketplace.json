@@ -4,8 +4,8 @@
   "owner": {
     "name": "Nagarjuna Mullapudi"
   },
-  "description": "Fable God Mode \u2014 token-discipline orchestration skills for Claude Code: Fable 5 plans and reviews, cheaper models execute, with an optional Codex independent-critic tier (default gpt-5.6-sol)",
-  "version": "0.2.0",
+  "description": "Fable God Mode — token-discipline orchestration skills for Claude Code: Fable 5 plans and reviews, cheaper models execute, with an optional Codex independent-critic tier (default gpt-5.6-sol)",
+  "version": "0.3.0",
   "plugins": [
     {
       "name": "fable-god-mode",
@@ -18,6 +18,12 @@
       "displayName": "Fable Super God Mode",
       "source": "./skills/fable-super-god-mode",
       "description": "Adds a Codex reviewer (default gpt-5.6-sol, fallback gpt-5.5, via the OpenAI Codex CLI) as an independent deterministic critic: tri-state verdict bridge (approved/findings/codex_unavailable), probe mode, union rule, critique log. Requires fable-god-mode plus a paid ChatGPT plan with Codex CLI."
+    },
+    {
+      "name": "session-handoff",
+      "displayName": "Session Handoff",
+      "source": "./skills/session-handoff",
+      "description": "Pause a heavy session at a natural boundary and resume in a fresh session via an audited handoff doc + one paste-able one-liner: natural-pause discipline, dated handoff with a self-contained resume prompt, a mandatory clean-context audit (cross-model via Codex preferred when installed and consented; local clean-context subagent otherwise) applied append-only to minimize context loss, and a one-line resume command. Project-agnostic; works standalone (no Codex required)."
     }
   ]
 }

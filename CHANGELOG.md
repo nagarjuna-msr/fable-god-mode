@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.3.0 — 2026-07-21
+
+- New skill: `session-handoff` — pause a heavy session at a NATURAL boundary and
+  resume in a fresh session while minimizing context loss. Flow: natural-pause discipline
+  (inventory running work, wait for the boundary, externalize restart recipes —
+  never abrupt), a dated handoff doc with a self-contained §RESUME prompt,
+  a MANDATORY clean-context audit of the handoff (cross-model via the
+  fable-super-god-mode Codex bridge when installed AND consented; a fresh
+  clean-context subagent as the disclosed fallback) applied APPEND-ONLY as GATE CORRECTIONS +
+  §RESUME-CORRECTED, and finally ONE paste-able resume line for the next session.
+  Triggers on session-transfer phrases ("resume in a new session", "give me the
+  resume one-liner", "pause at a natural boundary and continue in a new
+  session") and proactively offers itself once when the session grows heavy
+  (~500k+ tokens of history, a heuristic). The cross-model audit runs only with
+  established data-egress consent; otherwise a local clean-context subagent
+  audits. Project-agnostic; no Codex required.
+
 ## v0.2.0 — 2026-07-17
 
 - Default Codex reviewer model: `gpt-5.6-sol` (was `gpt-5.5`). Fallback to

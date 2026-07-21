@@ -14,6 +14,17 @@ Two installable Claude Code skills that spend your premium model where it earns 
 
 Both modes converge on the same operating discipline; Super God Mode is a strict superset.
 
+## What's new in v0.3.0
+
+- **`session-handoff`** (new, standalone): end a heavy session at a natural pause
+  and restart clean — audited handoff doc + one paste-able resume one-liner. See
+  `skills/session-handoff/SKILL.md`. Works without Codex (the audit falls back
+  to a local clean-context subagent and says so; the cross-model audit runs only
+  with established data-egress consent). Install:
+  `/plugin install session-handoff@fable-god-mode` — or copy the folder to
+  `~/.claude/skills/session-handoff/`. The agent-driven INSTALLER covers the two
+  orchestration skills only; session-handoff installs via plugin or manual copy.
+
 ## What's new in v0.2.0
 
 - **Default reviewer model is now `gpt-5.6-sol`** (requested explicitly on every call). Availability depends on your Codex plan and CLI; `gpt-5.5` is an explicit fallback used ONLY after a positively-classified model rejection — never on auth, network, or timeout errors — and always disclosed. The bridge logs `requested_model` and `reported_model` separately and never infers one from the other.
@@ -25,7 +36,7 @@ Both modes converge on the same operating discipline; Super God Mode is a strict
 
 **One line, any machine.** Paste this into any Claude Code session — no clone, no setup:
 
-> I want to install Fable God Mode v0.2.0 from https://github.com/nagarjuna-msr/fable-god-mode. Set it up for me.
+> I want to install Fable God Mode v0.3.0 from https://github.com/nagarjuna-msr/fable-god-mode. Set it up for me.
 
 Claude fetches the installer spec, interviews you, and shows you every change before making it. Works the same in Opus sessions — the discipline is model-relative (see FAQ).
 
@@ -51,8 +62,9 @@ manage plugins; the one-liner above is simpler and ends in the same place.
 
 1. In a Claude Code terminal session, register the marketplace:
    `/plugin marketplace add nagarjuna-msr/fable-god-mode`
-2. Install the skill you want (or both):
+2. Install the skill(s) you want (any or all three):
    `/plugin install fable-god-mode@fable-god-mode`
+   `/plugin install session-handoff@fable-god-mode`
    `/plugin install fable-super-god-mode@fable-god-mode`
 3. Activate without restarting: `/reload-plugins`
 4. The plugin gives you the skills. To get the full setup (managed CLAUDE.md
@@ -104,6 +116,8 @@ Windows is supported through Node: the bridge is a `.mjs` script — no WSL or b
 
 ## Repo map
 
+(abbreviated — primary files only)
+
 ```
 fable-god-mode/
 ├── README.md
@@ -117,14 +131,16 @@ fable-god-mode/
 │   │   └── references/
 │   │       ├── routing.md
 │   │       └── audit.md
-│   └── fable-super-god-mode/
-│       ├── SKILL.md
-│       ├── scripts/
-│       │   └── ask-codex.mjs
-│       └── references/
-│           ├── routing.md
-│           ├── setup-codex.md
-│           └── verdict-schema.json
+│   ├── fable-super-god-mode/
+│   │   ├── SKILL.md
+│   │   ├── scripts/
+│   │   │   └── ask-codex.mjs
+│   │   └── references/
+│   │       ├── routing.md
+│   │       ├── setup-codex.md
+│   │       └── verdict-schema.json
+│   └── session-handoff/
+│       └── SKILL.md
 ├── examples/
 └── docs/
     └── planning/
